@@ -7,37 +7,24 @@ export default defineConfig({
     vue(),
     VitePWA({
       registerType: 'autoUpdate',
+      manifest: false, // Dynamic manifest dari /api/public/manifest (branding admin)
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//],
         runtimeCaching: [
           {
-            urlPattern: /^https:\/\/hsmart\.app\/api\/.*/i,
+            urlPattern: /\/api\/public\/(manifest|branding)/,
+            handler: 'NetworkOnly', // manifest & branding selalu fresh untuk logo admin
+          },
+          {
+            urlPattern: /\/api\//,
             handler: 'NetworkFirst',
             options: {
               cacheName: 'api-cache',
               networkTimeoutSeconds: 10,
               cacheableResponse: { statuses: [0, 200] },
             },
-          },
-        ],
-      },
-      manifest: {
-        name: 'HSmart',
-        short_name: 'HSmart',
-        description: 'POS & bisnis untuk UMKM',
-        start_url: '/',
-        display: 'standalone',
-        theme_color: '#16a34a',
-        background_color: '#ffffff',
-        orientation: 'portrait',
-        icons: [
-          {
-            src: '/favicon.svg',
-            sizes: 'any',
-            type: 'image/svg+xml',
-            purpose: 'any maskable',
           },
         ],
       },

@@ -8,7 +8,7 @@
       class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 flex items-center justify-between gap-3"
     >
       <p class="text-amber-800 text-sm">Langganan Anda telah kadaluarsa. Beberapa fitur dibatasi.</p>
-      <router-link to="/subscription" class="shrink-0 px-4 py-2 rounded-xl bg-amber-600 text-white text-sm font-medium">
+      <router-link to="/app/subscription" class="shrink-0 px-4 py-2 rounded-xl bg-amber-600 text-white text-sm font-medium">
         Perpanjang
       </router-link>
     </div>
@@ -32,7 +32,7 @@
         <p v-if="currentPlan === 'free'" class="mt-1 opacity-95">Fitur laporan terbatas. Upgrade untuk data laporan yang lebih banyak.</p>
       </div>
       <router-link
-        to="/subscription"
+        to="/app/subscription"
         class="mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/20 hover:bg-white/30 font-medium text-sm transition-colors"
       >
         Upgrade / Perpanjang
@@ -45,7 +45,7 @@
         <router-link
           v-for="o in pendingOrders"
           :key="o.id"
-          to="/subscription"
+          to="/app/subscription"
           class="flex items-center justify-between gap-3 p-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors"
         >
           <div class="min-w-0">
@@ -63,7 +63,7 @@
           </span>
         </router-link>
       </div>
-      <router-link to="/subscription" class="block mt-3 text-center text-sm font-medium text-primary-600 hover:text-primary-700">
+      <router-link to="/app/subscription" class="block mt-3 text-center text-sm font-medium text-primary-600 hover:text-primary-700">
         Lihat semua →
       </router-link>
     </section>
@@ -127,7 +127,7 @@
           </div>
         </div>
         <router-link
-          to="/reports"
+          to="/app/reports"
           class="mt-4 pt-3 border-t border-gray-100 block text-center text-sm font-medium text-primary-600 hover:text-primary-700"
         >
           Lihat laporan lengkap →

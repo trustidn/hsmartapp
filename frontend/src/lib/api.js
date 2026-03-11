@@ -37,6 +37,9 @@ async function request(method, path, body) {
 }
 
 export const api = {
+  publicBranding: {
+    get: () => fetch(BASE + '/public/branding').then((r) => (r.ok ? r.json() : { app_name: 'HSmart', logo_url: '' })),
+  },
   auth: {
     login: (phone, password) => request('POST', '/auth/login', { phone, password }),
     register: (data) => request('POST', '/register', data),

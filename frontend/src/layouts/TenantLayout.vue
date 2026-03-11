@@ -2,7 +2,7 @@
   <div class="min-h-dvh flex flex-col bg-[#f8faf8] safe-top safe-bottom">
     <!-- Header: Logo + nama app kiri, judul tengah, exit kanan -->
     <header class="sticky top-0 z-20 flex items-center justify-between h-14 px-4 bg-white/95 backdrop-blur border-b border-gray-100/80 safe-top">
-      <router-link to="/" class="flex items-center gap-2 shrink-0 min-w-0">
+      <router-link to="/app" class="flex items-center gap-2 shrink-0 min-w-0">
         <img
           v-if="saasSettings.logoUrl"
           :src="saasSettings.logoUrl"
@@ -111,17 +111,17 @@ onMounted(() => {
 })
 
 const bottomNavItems = [
-  { to: '/', label: 'Dashboard', icon: navIcons.chart },
-  { to: '/expenses', label: 'Pengeluaran', icon: navIcons.expense },
-  { to: '/pos', label: 'POS', icon: navIcons.pos, featured: true },
-  { to: '/products', label: 'Produk', icon: navIcons.product },
-  { to: '/more', label: 'Lainnya', icon: navIcons.more },
+  { to: '/app', label: 'Dashboard', icon: navIcons.chart },
+  { to: '/app/expenses', label: 'Pengeluaran', icon: navIcons.expense },
+  { to: '/app/pos', label: 'POS', icon: navIcons.pos, featured: true },
+  { to: '/app/products', label: 'Produk', icon: navIcons.product },
+  { to: '/app/more', label: 'Lainnya', icon: navIcons.more },
 ]
 
 function isActive(item) {
-  if (item.to === '/') return route.path === '/' || route.path === ''
-  if (item.to === '/pos') return route.path === '/pos'
-  if (item.to === '/more') return route.path === '/more' || ['/reports', '/settings', '/subscription'].includes(route.path)
+  if (item.to === '/app') return route.path === '/app' || route.path === '/app/'
+  if (item.to === '/app/pos') return route.path === '/app/pos'
+  if (item.to === '/app/more') return route.path === '/app/more' || ['/app/reports', '/app/settings', '/app/subscription'].includes(route.path)
   return route.path.startsWith(item.to)
 }
 

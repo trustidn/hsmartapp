@@ -9,6 +9,10 @@
 import { onMounted, onUnmounted } from 'vue'
 import Toast from './components/Toast.vue'
 import { useAuthStore } from './stores/auth'
+import { useBranding } from './composables/useBranding'
+
+// Branding: favicon, title, apple-touch-icon
+useBranding()
 import { useProductsStore } from './stores/products'
 import { syncPending } from './stores/sync'
 

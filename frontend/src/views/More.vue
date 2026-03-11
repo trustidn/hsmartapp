@@ -114,9 +114,9 @@ const syncIcons = {
 }
 
 const menuItems = [
-  { to: '/subscription', label: 'Langganan', icon: menuIcons.subscription, desc: 'Upgrade plan atau perpanjang layanan' },
-  { to: '/reports', label: 'Laporan', icon: menuIcons.chart, desc: 'Transaksi, pengeluaran & analisis' },
-  { to: '/settings', label: 'Pengaturan', icon: menuIcons.settings, desc: 'Konfigurasi toko' },
+  { to: '/app/subscription', label: 'Langganan', icon: menuIcons.subscription, desc: 'Upgrade plan atau perpanjang layanan' },
+  { to: '/app/reports', label: 'Laporan', icon: menuIcons.chart, desc: 'Transaksi, pengeluaran & analisis' },
+  { to: '/app/settings', label: 'Pengaturan', icon: menuIcons.settings, desc: 'Konfigurasi toko' },
 ]
 
 const avatarLetter = computed(() => {
@@ -136,6 +136,6 @@ async function manualSync() {
 
 function handleLogout() {
   auth.logout()
-  router.replace('/login')
+  router.replace('/')
 }
 </script>

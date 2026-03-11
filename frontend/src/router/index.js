@@ -12,6 +12,7 @@ import Settings from '../views/Settings.vue'
 import More from '../views/More.vue'
 
 const routes = [
+  { path: '/', name: 'Welcome', component: () => import('../views/Welcome.vue'), meta: { public: true } },
   { path: '/login', name: 'Login', component: () => import('../views/Login.vue'), meta: { guest: true } },
   { path: '/register', name: 'Register', component: () => import('../views/Register.vue'), meta: { guest: true } },
   { path: '/admin/login', name: 'AdminLogin', component: () => import('../views/admin/AdminLogin.vue'), meta: { adminGuest: true } },
@@ -29,7 +30,7 @@ const routes = [
     ],
   },
   {
-    path: '/',
+    path: '/app',
     component: TenantLayout,
     meta: { requiresAuth: true },
     children: [
@@ -55,8 +56,9 @@ router.beforeEach(async (to) => {
   const adminAuth = useAdminAuthStore()
   if (to.meta.requiresAdmin && !adminAuth.isAdminLoggedIn) return { name: 'AdminLogin' }
   if (to.meta.adminGuest && adminAuth.isAdminLoggedIn) return { name: 'AdminDashboard' }
-  if (to.meta.requiresAuth && !auth.isLoggedIn) return { name: 'Login' }
-  if (to.meta.guest && auth.isLoggedIn) return { name: 'Dashboard' }
+  if (to.meta.requiresAuth && !auth.isLoggedIn) return { name: 'Welcome' }
+  if ((to.meta.guest || to.meta.public) && auth.isLoggedIn && to.name !== 'Welcome') return { name: 'Dashboard' }
+  if (to.name === 'Welcome' && auth.isLoggedIn) return { name: 'Dashboard' }
   return true
 })
 

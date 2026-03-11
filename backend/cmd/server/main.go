@@ -138,6 +138,8 @@ func run(ctx context.Context) error {
 	mux.Handle("/uploads/", upload.ServeUploads(uploadDir))
 
 	// Public
+	mux.HandleFunc("GET /api/public/branding", saasConfigHandler.GetPublic)
+	mux.HandleFunc("GET /api/public/manifest", saasConfigHandler.GetManifest)
 	mux.HandleFunc("POST /api/auth/login", authHandler.Login)
 	mux.HandleFunc("POST /api/register", tenantHandler.Register)
 

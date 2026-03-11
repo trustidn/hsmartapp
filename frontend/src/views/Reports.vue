@@ -11,7 +11,7 @@
         class="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between gap-3"
       >
         <p class="text-amber-800 text-sm">Langganan Anda telah kadaluarsa. Laporan dibatasi.</p>
-        <router-link to="/subscription" class="shrink-0 px-4 py-2 rounded-xl bg-amber-600 text-white text-sm font-medium">
+        <router-link to="/app/subscription" class="shrink-0 px-4 py-2 rounded-xl bg-amber-600 text-white text-sm font-medium">
           Perpanjang
         </router-link>
       </div>
@@ -20,7 +20,7 @@
         class="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center justify-between gap-3"
       >
         <p class="text-blue-800 text-sm">{{ planLimits.reportLimitMessage }}</p>
-        <router-link to="/subscription" class="shrink-0 px-4 py-2 rounded-xl bg-primary-600 text-white text-sm font-medium">
+        <router-link to="/app/subscription" class="shrink-0 px-4 py-2 rounded-xl bg-primary-600 text-white text-sm font-medium">
           Upgrade
         </router-link>
       </div>
