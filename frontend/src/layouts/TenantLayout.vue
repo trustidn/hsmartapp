@@ -4,8 +4,8 @@
     <header class="sticky top-0 z-20 flex items-center justify-between h-14 px-4 bg-white/95 backdrop-blur border-b border-gray-100/80 safe-top">
       <router-link to="/" class="flex items-center gap-2 shrink-0 min-w-0">
         <img
-          v-if="logoUrl"
-          :src="logoUrl"
+          v-if="saasSettings.logoUrl"
+          :src="saasSettings.logoUrl"
           alt="Logo"
           class="w-8 h-8 object-contain rounded-lg"
         />
@@ -74,6 +74,7 @@ import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useSettingsStore } from '../stores/settings'
+import { useSaasSettingsStore } from '../stores/saasSettings'
 
 const navIcons = {
   pos: '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z"/></svg>',
@@ -87,17 +88,20 @@ const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 const settings = useSettingsStore()
+const saasSettings = useSaasSettingsStore()
 
 const pageTitle = computed(() => {
   const m = route.matched[route.matched.length - 1]?.meta
   return m?.title ?? 'HSmart'
 })
-const logoUrl = computed(() => settings.settings?.logo_url || '')
 const appName = computed(() => settings.settings?.name || 'HSmart')
 const appInitial = computed(() => (appName.value?.charAt(0) || 'H').toUpperCase())
 
 onMounted(() => {
-  if (auth.tenantId) settings.load(auth.tenantId)
+  if (auth.tenantId) {
+    settings.load(auth.tenantId)
+    saasSettings.loadForTenant()
+  }
 })
 
 const bottomNavItems = [
@@ -111,7 +115,7 @@ const bottomNavItems = [
 function isActive(item) {
   if (item.to === '/') return route.path === '/' || route.path === ''
   if (item.to === '/pos') return route.path === '/pos'
-  if (item.to === '/more') return route.path === '/more' || ['/reports', '/settings'].includes(route.path)
+  if (item.to === '/more') return route.path === '/more' || ['/reports', '/settings', '/subscription'].includes(route.path)
   return route.path.startsWith(item.to)
 }
 

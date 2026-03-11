@@ -18,6 +18,35 @@
         </div>
       </div>
     </section>
+    <!-- Order belum selesai -->
+    <section v-if="pendingOrders.length" class="bg-white rounded-2xl shadow-sm p-4 mb-4 border border-amber-100">
+      <h2 class="text-sm font-medium text-gray-700 mb-3">Order belum selesai</h2>
+      <div class="space-y-2">
+        <router-link
+          v-for="o in pendingOrders"
+          :key="o.id"
+          to="/subscription"
+          class="flex items-center justify-between gap-3 p-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors"
+        >
+          <div class="min-w-0">
+            <p class="font-medium text-gray-800">{{ planLabelFromSlug(o.plan_slug) }}</p>
+            <p class="text-xs text-gray-500">Rp {{ formatNum(o.amount_rupiah ?? 0) }} · {{ formatDate(o.created_at) }}</p>
+          </div>
+          <span
+            :class="{
+              'bg-amber-100 text-amber-700': o.status === 'pending',
+              'bg-blue-100 text-blue-700': o.status === 'paid',
+            }"
+            class="px-2 py-1 rounded-lg text-xs font-medium shrink-0"
+          >
+            {{ o.status === 'pending' ? 'Belum bayar' : 'Menunggu verifikasi' }}
+          </span>
+        </router-link>
+      </div>
+      <router-link to="/subscription" class="block mt-3 text-center text-sm font-medium text-primary-600 hover:text-primary-700">
+        Lihat semua →
+      </router-link>
+    </section>
     <!-- Filters: Today, 7 Days, 30 Days, 12 Months. Offline: only Today -->
     <div class="flex gap-2 mb-4 overflow-x-auto pb-2">
       <button
@@ -138,6 +167,7 @@ const loading = ref(true)
 const filter = ref('today')
 const dashboardData = ref(null)
 const subscription = ref(null)
+const pendingOrders = ref([])
 
 const filters = [
   { key: 'today', label: 'Hari Ini' },
@@ -201,6 +231,7 @@ function formatCompact(n) {
 onMounted(async () => {
   if (auth.tenantId && !settings.settings) await settings.load(auth.tenantId)
   loadSubscription()
+  loadPendingOrders()
   load()
 })
 
@@ -210,6 +241,30 @@ async function loadSubscription() {
     subscription.value = await api.subscription.get()
   } catch {
     subscription.value = null
+  }
+}
+
+async function loadPendingOrders() {
+  if (!auth.tenantId || isOffline.value) return
+  try {
+    const res = await api.subscriptionOrders.list()
+    const orders = res.orders || []
+    pendingOrders.value = orders.filter((o) => o.status === 'pending' || o.status === 'paid')
+  } catch {
+    pendingOrders.value = []
+  }
+}
+
+const planLabels = { free: 'Free', premium_1m: 'Premium 1 Bulan', premium_3m: 'Premium 3 Bulan', premium_6m: 'Premium 6 Bulan', premium_1y: 'Premium 1 Tahun', platinum: 'Platinum' }
+function planLabelFromSlug(slug) {
+  return planLabels[slug] || slug || '-'
+}
+function formatDate(s) {
+  if (!s) return '-'
+  try {
+    return new Date(s).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
+  } catch {
+    return s
   }
 }
 

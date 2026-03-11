@@ -151,3 +151,36 @@ func (r *Repository) ListByTenant(ctx context.Context, tenantID uuid.UUID, from,
 	}
 	return list, rows.Err()
 }
+
+// TenantSaleStats for admin: count and last sale per tenant
+type TenantSaleStats struct {
+	TenantID    uuid.UUID
+	Count       int64
+	LastSaleAt  *string
+}
+
+func (r *Repository) GetStatsByTenantIDs(ctx context.Context, tenantIDs []uuid.UUID) (map[uuid.UUID]TenantSaleStats, error) {
+	if len(tenantIDs) == 0 {
+		return map[uuid.UUID]TenantSaleStats{}, nil
+	}
+	rows, err := r.pool.Query(ctx, `
+		SELECT tenant_id, COUNT(*), MAX(created_at)::text
+		FROM sales WHERE tenant_id = ANY($1)
+		GROUP BY tenant_id
+	`, tenantIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	result := make(map[uuid.UUID]TenantSaleStats)
+	for rows.Next() {
+		var s TenantSaleStats
+		var lastAt *string
+		if err := rows.Scan(&s.TenantID, &s.Count, &lastAt); err != nil {
+			return nil, err
+		}
+		s.LastSaleAt = lastAt
+		result[s.TenantID] = s
+	}
+	return result, rows.Err()
+}

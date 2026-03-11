@@ -72,15 +72,15 @@ func (r *Repository) Create(ctx context.Context, name, phone, passwordHash strin
 
 func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*Tenant, error) {
 	var t Tenant
+	// Only use base columns (migration 001) for compatibility when 002/003 not run
 	err := r.pool.QueryRow(ctx, `
-		SELECT id, name, phone, plan, status, created_at::text,
-			COALESCE(receipt_footer, ''), COALESCE(default_payment, 'cash'), COALESCE(whatsapp_number, ''),
-			COALESCE(logo_url, '')
+		SELECT id, name, phone, plan, status, created_at::text
 		FROM tenants WHERE id = $1
-	`, id).Scan(&t.ID, &t.Name, &t.Phone, &t.Plan, &t.Status, &t.CreatedAt, &t.ReceiptFooter, &t.DefaultPayment, &t.WhatsAppNumber, &t.LogoURL)
+	`, id).Scan(&t.ID, &t.Name, &t.Phone, &t.Plan, &t.Status, &t.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
+	t.DefaultPayment = "cash"
 	return &t, nil
 }
 
@@ -148,5 +148,10 @@ func (r *Repository) List(ctx context.Context, limit, offset int, search string)
 
 func (r *Repository) UpdateStatus(ctx context.Context, id uuid.UUID, status string) error {
 	_, err := r.pool.Exec(ctx, `UPDATE tenants SET status = $2 WHERE id = $1`, id, status)
+	return err
+}
+
+func (r *Repository) UpdatePlan(ctx context.Context, id uuid.UUID, plan string) error {
+	_, err := r.pool.Exec(ctx, `UPDATE tenants SET plan = $2 WHERE id = $1`, id, plan)
 	return err
 }

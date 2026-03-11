@@ -5,18 +5,20 @@ import (
 	"errors"
 
 	"github.com/google/uuid"
+	"github.com/hsmart/app/backend/internal/planconfig"
+	"github.com/hsmart/app/backend/internal/tenant"
 )
 
-var ErrProductLimit = errors.New("product limit reached for free plan")
-
-const FreePlanProductLimit = 10
+var ErrProductLimit = errors.New("product limit reached for plan")
 
 type Service struct {
-	repo *Repository
+	repo         *Repository
+	tenantRepo   *tenant.Repository
+	planConfig   *planconfig.Repository
 }
 
-func NewService(repo *Repository) *Service {
-	return &Service{repo: repo}
+func NewService(repo *Repository, tenantRepo *tenant.Repository, planConfig *planconfig.Repository) *Service {
+	return &Service{repo: repo, tenantRepo: tenantRepo, planConfig: planConfig}
 }
 
 func (s *Service) List(ctx context.Context, tenantID uuid.UUID, activeOnly bool) ([]Product, error) {
@@ -33,12 +35,16 @@ func (s *Service) Create(ctx context.Context, tenantID uuid.UUID, input CreateIn
 	if input.Name == "" || input.Price < 0 {
 		return nil, errors.New("name required and price >= 0")
 	}
-	// Free plan limit
+	t, err := s.tenantRepo.GetByID(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	maxProducts := s.planConfig.GetMaxProducts(ctx, t.Plan)
 	count, err := s.repo.CountByTenant(ctx, tenantID)
 	if err != nil {
 		return nil, err
 	}
-	if count >= FreePlanProductLimit {
+	if maxProducts >= 0 && count >= maxProducts {
 		return nil, ErrProductLimit
 	}
 	if input.SortOrder == 0 {

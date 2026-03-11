@@ -23,6 +23,9 @@ const routes = [
       { path: '', name: 'AdminDashboard', component: () => import('../views/admin/AdminDashboard.vue'), meta: { title: 'Admin' } },
       { path: 'tenants', name: 'AdminTenants', component: () => import('../views/admin/AdminTenants.vue'), meta: { title: 'Tenants' } },
       { path: 'tenants/:id', name: 'AdminTenantDetail', component: () => import('../views/admin/AdminTenantDetail.vue'), meta: { title: 'Detail Tenant' } },
+      { path: 'plans', name: 'AdminPlans', component: () => import('../views/admin/AdminPlans.vue'), meta: { title: 'Pengaturan Plan' } },
+      { path: 'subscription-orders', name: 'AdminSubscriptionOrders', component: () => import('../views/admin/AdminSubscriptionOrders.vue'), meta: { title: 'Order Langganan' } },
+      { path: 'saas-settings', name: 'AdminSaasSettings', component: () => import('../views/admin/AdminSaasSettings.vue'), meta: { title: 'Pengaturan SaaS' } },
     ],
   },
   {
@@ -36,6 +39,7 @@ const routes = [
       { path: 'expenses', name: 'Expenses', component: Expenses, meta: { title: 'Pengeluaran' } },
       { path: 'reports', name: 'Reports', component: Reports, meta: { title: 'Laporan' } },
       { path: 'settings', name: 'Settings', component: Settings, meta: { title: 'Pengaturan' } },
+      { path: 'subscription', name: 'Subscription', component: () => import('../views/Subscription.vue'), meta: { title: 'Langganan' } },
       { path: 'more', name: 'More', component: More, meta: { title: 'Lainnya' } },
     ],
   },

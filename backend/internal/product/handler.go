@@ -49,7 +49,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if err == ErrProductLimit {
 			w.WriteHeader(http.StatusForbidden)
-			json.NewEncoder(w).Encode(map[string]string{"error": "product limit reached for free plan"})
+			json.NewEncoder(w).Encode(map[string]string{"error": "Batas produk untuk plan Anda telah tercapai"})
 			return
 		}
 		http.Error(w, `{"error":"create failed"}`, http.StatusInternalServerError)

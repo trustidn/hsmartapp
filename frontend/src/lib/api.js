@@ -9,6 +9,15 @@ function getAuth() {
   return headers
 }
 
+function getAuthNoContentType() {
+  const token = localStorage.getItem('token')
+  const tenantId = localStorage.getItem('tenantId')
+  const headers = {}
+  if (token) headers['Authorization'] = `Bearer ${token}`
+  if (tenantId) headers['X-Tenant-ID'] = tenantId
+  return headers
+}
+
 async function request(method, path, body) {
   const opts = { method, headers: getAuth() }
   if (body) opts.body = JSON.stringify(body)
@@ -91,8 +100,41 @@ export const api = {
       return request('GET', '/report/dashboard?' + p)
     },
   },
+  plans: {
+    list: () => request('GET', '/plans'),
+  },
   subscription: {
     get: () => request('GET', '/subscription'),
+    history: () => request('GET', '/subscription/history'),
+  },
+  subscriptionOrders: {
+    create: (data) => request('POST', '/subscription/orders', data),
+    list: () => request('GET', '/subscription/orders'),
+    setPaymentProof: (orderId, paymentProofUrl) => request('PATCH', '/subscription/orders/payment-proof', { order_id: orderId, payment_proof_url: paymentProofUrl }),
+    uploadPaymentProof: async (file) => {
+      const form = new FormData()
+      form.append('file', file)
+      const res = await fetch(BASE + '/upload/payment-proof', {
+        method: 'POST',
+        headers: getAuthNoContentType(),
+        body: form,
+      })
+      if (!res.ok) {
+        const t = await res.text()
+        let err
+        try {
+          err = JSON.parse(t)
+        } catch {
+          err = { error: t || res.statusText }
+        }
+        throw new Error(err.error || 'Upload gagal')
+      }
+      const data = await res.json()
+      return data.url
+    },
+  },
+  saasSettings: {
+    get: () => request('GET', '/saas-settings'),
   },
   tenant: {
     getSettings: () => request('GET', '/tenant/settings'),

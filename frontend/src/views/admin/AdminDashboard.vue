@@ -14,6 +14,27 @@
         <h2 class="font-semibold text-gray-800">Daftar Tenant</h2>
         <p class="text-sm text-gray-500 mt-1">Kelola merchant / UMKM terdaftar, status, dan subscription</p>
       </router-link>
+      <router-link
+        to="/admin/subscription-orders"
+        class="block p-6 bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
+      >
+        <h2 class="font-semibold text-gray-800">Order Langganan</h2>
+        <p class="text-sm text-gray-500 mt-1">Verifikasi dan setujui order upgrade/perpanjang dari tenant</p>
+      </router-link>
+      <router-link
+        to="/admin/plans"
+        class="block p-6 bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
+      >
+        <h2 class="font-semibold text-gray-800">Pengaturan Plan</h2>
+        <p class="text-sm text-gray-500 mt-1">Atur max produk dan hari laporan per plan (Free, Premium 1/3/6/12 bln)</p>
+      </router-link>
+      <router-link
+        to="/admin/saas-settings"
+        class="block p-6 bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
+      >
+        <h2 class="font-semibold text-gray-800">Pengaturan SaaS</h2>
+        <p class="text-sm text-gray-500 mt-1">Nama, logo, kontak admin, rekening pembayaran</p>
+      </router-link>
     </div>
 
     <button

@@ -5,20 +5,26 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 
 	"github.com/hsmart/app/backend/internal/admin"
 	"github.com/hsmart/app/backend/internal/adminauth"
-	"github.com/joho/godotenv"
 	"github.com/hsmart/app/backend/internal/auth"
 	"github.com/hsmart/app/backend/internal/expense"
+	"github.com/hsmart/app/backend/internal/planconfig"
+	"github.com/hsmart/app/backend/internal/plans"
 	"github.com/hsmart/app/backend/internal/product"
 	"github.com/hsmart/app/backend/internal/report"
+	"github.com/hsmart/app/backend/internal/saasconfig"
 	"github.com/hsmart/app/backend/internal/sales"
+	"github.com/hsmart/app/backend/internal/suborder"
 	"github.com/hsmart/app/backend/internal/subscription"
 	"github.com/hsmart/app/backend/internal/tenant"
+	"github.com/hsmart/app/backend/internal/upload"
 	"github.com/hsmart/app/backend/pkg/cache"
 	"github.com/hsmart/app/backend/pkg/database"
 	"github.com/hsmart/app/backend/pkg/middleware"
+	"github.com/joho/godotenv"
 )
 
 func main() {
@@ -58,8 +64,9 @@ func run(ctx context.Context) error {
 	tenantHandler := tenant.NewHandler(tenantSvc)
 
 	// Protected modules (tenant + auth)
+	planConfigRepo := planconfig.NewRepository(pool)
 	productRepo := product.NewRepository(pool)
-	productSvc := product.NewService(productRepo)
+	productSvc := product.NewService(productRepo, tenantRepo, planConfigRepo)
 	productHandler := product.NewHandler(productSvc)
 
 	salesRepo := sales.NewRepository(pool)
@@ -78,6 +85,13 @@ func run(ctx context.Context) error {
 	subSvc := subscription.NewService(subRepo)
 	subHandler := subscription.NewHandler(subSvc)
 
+	suborderRepo := suborder.NewRepository(pool)
+	suborderSvc := suborder.NewService(suborderRepo)
+	suborderHandler := suborder.NewHandler(suborderSvc, planConfigRepo)
+	plansHandler := plans.NewHandler(planConfigRepo)
+	saasConfigRepo := saasconfig.NewRepository(pool)
+	saasConfigHandler := saasconfig.NewHandler(saasConfigRepo)
+
 	mux := http.NewServeMux()
 
 	// Admin auth (superadmin, no tenant)
@@ -85,23 +99,47 @@ func run(ctx context.Context) error {
 	adminAuthSvc := adminauth.NewService(adminAuthRepo, []byte(jwtSecret))
 	adminAuthHandler := adminauth.NewHandler(adminAuthSvc)
 	adminGuard := middleware.AdminGuard([]byte(jwtSecret))
-	adminHandler := admin.NewHandler(tenantRepo, subRepo)
+	adminHandler := admin.NewHandler(tenantRepo, subRepo, planConfigRepo, salesRepo, suborderRepo)
+
+	authWrap := middleware.Auth([]byte(jwtSecret))
+	protect := func(h http.Handler) http.Handler {
+		return middleware.Tenant(authWrap(h))
+	}
 
 	mux.HandleFunc("POST /api/admin/auth/login", adminAuthHandler.Login)
 	mux.Handle("GET /api/admin/me", adminGuard(http.HandlerFunc(adminAuthHandler.Me)))
 	mux.Handle("GET /api/admin/tenants", adminGuard(http.HandlerFunc(adminHandler.ListTenants)))
 	mux.Handle("GET /api/admin/tenants/get", adminGuard(http.HandlerFunc(adminHandler.GetTenant)))
 	mux.Handle("PATCH /api/admin/tenants/status", adminGuard(http.HandlerFunc(adminHandler.UpdateTenantStatus)))
+	mux.Handle("PATCH /api/admin/tenants/subscription", adminGuard(http.HandlerFunc(adminHandler.UpdateTenantSubscription)))
+	mux.Handle("GET /api/admin/plans", adminGuard(http.HandlerFunc(adminHandler.ListPlanConfig)))
+	mux.Handle("PATCH /api/admin/plans", adminGuard(http.HandlerFunc(adminHandler.UpdatePlanConfig)))
+	mux.Handle("DELETE /api/admin/plans", adminGuard(http.HandlerFunc(adminHandler.DeletePlan)))
+	mux.Handle("POST /api/admin/plans/restore", adminGuard(http.HandlerFunc(adminHandler.RestorePlan)))
+	mux.Handle("GET /api/admin/subscription-orders", adminGuard(http.HandlerFunc(adminHandler.ListSubscriptionOrders)))
+	mux.Handle("POST /api/admin/subscription-orders/approve", adminGuard(http.HandlerFunc(adminHandler.ApproveSubscriptionOrder)))
+	mux.Handle("POST /api/admin/subscription-orders/reject", adminGuard(http.HandlerFunc(adminHandler.RejectSubscriptionOrder)))
+	mux.Handle("GET /api/admin/saas-settings", adminGuard(http.HandlerFunc(saasConfigHandler.Get)))
+	mux.Handle("PATCH /api/admin/saas-settings", adminGuard(http.HandlerFunc(saasConfigHandler.Update)))
+
+	uploadDir := getEnv("UPLOAD_DIR", "./uploads")
+	baseURL := getEnv("BASE_URL", "") // kosong = relative path (/uploads/...) untuk proxy dev & production
+	if err := os.MkdirAll(filepath.Join(uploadDir, "logos"), 0755); err != nil {
+		log.Printf("[main] mkdir uploads/logos: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(uploadDir, "payment-proofs"), 0755); err != nil {
+		log.Printf("[main] mkdir uploads/payment-proofs: %v", err)
+	}
+	uploadHandler := upload.NewHandler(uploadDir, baseURL)
+	mux.Handle("POST /api/admin/upload/logo", adminGuard(http.HandlerFunc(uploadHandler.UploadLogo)))
+	mux.Handle("POST /api/upload/payment-proof", protect(http.HandlerFunc(uploadHandler.UploadPaymentProof)))
+	mux.Handle("/uploads/", upload.ServeUploads(uploadDir))
 
 	// Public
 	mux.HandleFunc("POST /api/auth/login", authHandler.Login)
 	mux.HandleFunc("POST /api/register", tenantHandler.Register)
 
 	// Protected: require Tenant header + JWT (Tenant first, then Auth)
-	authWrap := middleware.Auth([]byte(jwtSecret))
-	protect := func(h http.Handler) http.Handler {
-		return middleware.Tenant(authWrap(h))
-	}
 	mux.Handle("GET /api/products", protect(http.HandlerFunc(productHandler.List)))
 	mux.Handle("POST /api/products", protect(http.HandlerFunc(productHandler.Create)))
 	mux.Handle("GET /api/products/get", protect(http.HandlerFunc(productHandler.Get)))
@@ -120,7 +158,13 @@ func run(ctx context.Context) error {
 	mux.Handle("GET /api/report/ranking", protect(http.HandlerFunc(reportHandler.ProductRanking)))
 	mux.Handle("GET /api/report/dashboard", protect(http.HandlerFunc(reportHandler.Dashboard)))
 
+	mux.Handle("GET /api/plans", protect(http.HandlerFunc(plansHandler.ListActive)))
 	mux.Handle("GET /api/subscription", protect(http.HandlerFunc(subHandler.Get)))
+	mux.Handle("GET /api/subscription/history", protect(http.HandlerFunc(subHandler.ListHistory)))
+	mux.Handle("POST /api/subscription/orders", protect(http.HandlerFunc(suborderHandler.CreateOrder)))
+	mux.Handle("PATCH /api/subscription/orders/payment-proof", protect(http.HandlerFunc(suborderHandler.SetPaymentProof)))
+	mux.Handle("GET /api/subscription/orders", protect(http.HandlerFunc(suborderHandler.ListMyOrders)))
+	mux.Handle("GET /api/saas-settings", protect(http.HandlerFunc(saasConfigHandler.Get)))
 
 	mux.Handle("GET /api/tenant/settings", protect(http.HandlerFunc(tenantHandler.GetSettings)))
 	mux.Handle("PUT /api/tenant/settings", protect(http.HandlerFunc(tenantHandler.UpdateSettings)))

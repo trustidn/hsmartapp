@@ -17,3 +17,7 @@ func NewService(repo *Repository) *Service {
 func (s *Service) GetByTenant(ctx context.Context, tenantID uuid.UUID) (*Subscription, error) {
 	return s.repo.GetByTenant(ctx, tenantID)
 }
+
+func (s *Service) ListByTenant(ctx context.Context, tenantID uuid.UUID) ([]Subscription, error) {
+	return s.repo.ListByTenant(ctx, tenantID)
+}

@@ -37,3 +37,74 @@ func (r *Repository) GetByTenant(ctx context.Context, tenantID uuid.UUID) (*Subs
 	s.ExpiredAt = expiredAt
 	return &s, nil
 }
+
+// ListByTenant returns subscription history for a tenant, newest first.
+func (r *Repository) ListByTenant(ctx context.Context, tenantID uuid.UUID) ([]Subscription, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT id, tenant_id, plan, status, started_at::text, expired_at::text
+		FROM subscriptions WHERE tenant_id = $1 ORDER BY started_at DESC
+	`, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var list []Subscription
+	for rows.Next() {
+		var s Subscription
+		var expiredAt *string
+		if err := rows.Scan(&s.ID, &s.TenantID, &s.Plan, &s.Status, &s.StartedAt, &expiredAt); err != nil {
+			return nil, err
+		}
+		s.ExpiredAt = expiredAt
+		list = append(list, s)
+	}
+	return list, nil
+}
+
+// Create inserts a new subscription row. Used for adding/renewing (accumulated).
+func (r *Repository) Create(ctx context.Context, tenantID uuid.UUID, plan, status string, expiredAt *string) error {
+	var val interface{}
+	if expiredAt == nil || *expiredAt == "" {
+		val = nil
+	} else {
+		val = expiredAt
+	}
+	_, err := r.pool.Exec(ctx, `
+		INSERT INTO subscriptions (tenant_id, plan, status, expired_at)
+		VALUES ($1, $2, $3, $4)
+	`, tenantID, plan, status, val)
+	return err
+}
+
+// UpdateLatest updates the most recent subscription for a tenant (admin only).
+// Pass empty string for plan/status to leave unchanged.
+// expiredAt: nil = don't change, non-nil = set (use empty string to clear/set NULL).
+// Valid plans for subscription
+var ValidPlans = map[string]bool{"free": true, "premium": true, "premium_1m": true, "premium_3m": true, "premium_6m": true, "premium_1y": true, "platinum": true}
+
+func (r *Repository) UpdateLatest(ctx context.Context, tenantID uuid.UUID, plan, status string, expiredAt *string) error {
+	var err error
+	if expiredAt == nil {
+		_, err = r.pool.Exec(ctx, `
+			UPDATE subscriptions SET
+				plan = CASE WHEN $2 != '' THEN $2 ELSE plan END,
+				status = CASE WHEN $3 != '' THEN $3 ELSE status END
+			WHERE id = (SELECT id FROM subscriptions WHERE tenant_id = $1 ORDER BY started_at DESC LIMIT 1)
+		`, tenantID, plan, status)
+	} else {
+		var val interface{}
+		if *expiredAt == "" {
+			val = nil
+		} else {
+			val = expiredAt
+		}
+		_, err = r.pool.Exec(ctx, `
+			UPDATE subscriptions SET
+				plan = CASE WHEN $2 != '' THEN $2 ELSE plan END,
+				status = CASE WHEN $3 != '' THEN $3 ELSE status END,
+				expired_at = $4
+			WHERE id = (SELECT id FROM subscriptions WHERE tenant_id = $1 ORDER BY started_at DESC LIMIT 1)
+		`, tenantID, plan, status, val)
+	}
+	return err
+}

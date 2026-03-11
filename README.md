@@ -72,6 +72,13 @@ Buka http://localhost:5173 → Daftar (HP + password) → Login → Tambah Produ
 ```bash
 # Jalankan migration superadmins
 psql -d hsmart -f backend/migrations/004_superadmins.up.sql
+psql -d hsmart -f backend/migrations/005_plan_config.up.sql
+psql -d hsmart -f backend/migrations/006_plan_price.up.sql
+psql -d hsmart -f backend/migrations/007_plan_duration_days.up.sql
+psql -d hsmart -f backend/migrations/008_plan_platinum_and_order.up.sql
+psql -d hsmart -f backend/migrations/009_plan_is_active.up.sql
+psql -d hsmart -f backend/migrations/010_subscription_orders.up.sql
+psql -d hsmart -f backend/migrations/011_saas_config.up.sql
 
 # Seed superadmin pertama (default: admin@hsmart.app / admin123)
 cd backend && go run ./cmd/seed-admin
@@ -111,6 +118,9 @@ frontend/
   - `GET /api/admin/tenants?limit=&offset=&search=` — daftar tenant (paginated, search by nama/HP)
   - `GET /api/admin/tenants/get?id=` — detail tenant + subscription
   - `PATCH /api/admin/tenants/status` — ubah status tenant (body: `{id, status}` — status: active, suspended, inactive)
+  - `PATCH /api/admin/tenants/subscription` — ubah plan & expiry (body: `{id, plan?, expired_at?}` — plan: free, premium_1m, premium_3m, premium_6m, premium_1y)
+  - `GET /api/admin/plans` — daftar konfigurasi plan (max_products, report_days)
+  - `PATCH /api/admin/plans` — ubah konfigurasi plan (body: `{plan_slug, duration_days?, max_products?, report_days?, price_rupiah?}` — duration_days: hari langganan, 0 = unlimited)
 
 ## PWA & Offline
 
@@ -157,10 +167,10 @@ Atau deploy backend sebagai image, PostgreSQL/Redis di managed service; frontend
 
 All business data is scoped by `tenant_id`. Every request must send `X-Tenant-ID` (and valid JWT). Registration creates a tenant and an owner user; login returns `tenant_id` for subsequent requests.
 
-## Plans
+## Plans (konfigurasi oleh superadmin)
 
-- **Free:** Max 10 products, 7-day reports, single device.
-- **Premium:** Unlimited products, monthly reports, export, multi-device (Rp 10k–20k/month).
+- **Free:** Max produk & hari laporan diatur di `/admin/plans` (default: 10 produk, 7 hari).
+- **Premium 1/3/6/12 Bulan:** Max produk & hari laporan diatur per plan (default: unlimited produk, 30–365 hari).
 
 ---
 
