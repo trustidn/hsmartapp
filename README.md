@@ -161,7 +161,34 @@ Atau deploy backend sebagai image, PostgreSQL/Redis di managed service; frontend
 
 - Nginx: serve `frontend/dist` untuk `/`, proxy `/api` ke backend Go.
 - Backend: listen `:8080` (atau di belakang Nginx).
-- Set `DATABASE_URL`, `JWT_SECRET`, `REDIS_ADDR` di environment production.
+- Set `DATABASE_URL`, `JWT_SECRET`, `REDIS_ADDR`, `BASE_URL`, `UPLOAD_DIR` di environment production. Lihat `backend/.env.example`.
+
+## Backup
+
+Backup database dan folder uploads secara berkala:
+
+```bash
+# Backup semua (db + uploads)
+DATABASE_URL=postgres://user:pass@host:5432/hsmart ./scripts/backup-all.sh
+
+# Hanya database
+DATABASE_URL=postgres://... ./scripts/backup-db.sh
+
+# Hanya uploads
+UPLOAD_DIR=/path/to/uploads ./scripts/backup-uploads.sh
+```
+
+Output default: `./backups/db/` dan `./backups/uploads/`. Untuk cron harian jam 02:00:
+
+```
+0 2 * * * cd /path/to/hsmartapp && DATABASE_URL=postgres://... ./scripts/backup-all.sh
+```
+
+## Monitoring & Logging
+
+- **Request logging:** Tiap request dicatat (method, path, status, duration, IP). Error (4xx/5xx) dilog dengan prefix `[ERROR]` untuk monitoring.
+- **Rate limiting:** Sudah aktif (100 req/menit per IP). Untuk production skala besar, pertimbangkan Redis-based limiter.
+- **Log output:** stdout (gunakan systemd/docker log driver untuk pengumpulan terpusat).
 
 ## Multi-tenant
 

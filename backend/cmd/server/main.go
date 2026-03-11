@@ -29,11 +29,21 @@ import (
 
 func main() {
 	_ = godotenv.Load() // load .env from current dir (ignore error if missing)
+	validateProductionEnv()
 	ctx := context.Background()
 	if err := run(ctx); err != nil {
 		log.Fatal(err)
 	}
 }
+
+// validateProductionEnv warns when critical production vars use defaults.
+func validateProductionEnv() {
+	jwt := os.Getenv("JWT_SECRET")
+	if jwt == "" || jwt == "change-me-in-production" || jwt == "rahasia-dev" {
+		log.Printf("[WARN] JWT_SECRET menggunakan nilai default - HARUS diubah di production!")
+	}
+}
+
 
 func run(ctx context.Context) error {
 	dsn := getEnv("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/hsmart?sslmode=disable")
@@ -173,7 +183,7 @@ func run(ctx context.Context) error {
 	mux.Handle("GET /api/tenant/settings", protect(http.HandlerFunc(tenantHandler.GetSettings)))
 	mux.Handle("PUT /api/tenant/settings", protect(http.HandlerFunc(tenantHandler.UpdateSettings)))
 
-	handler := middleware.CORS(middleware.RateLimit(mux))
+	handler := middleware.Logging(middleware.CORS(middleware.RateLimit(mux)))
 
 	log.Printf("HSmart API listening on %s", addr)
 	return http.ListenAndServe(addr, handler)
