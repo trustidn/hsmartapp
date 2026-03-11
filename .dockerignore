@@ -1,0 +1,54 @@
+# Dependencies
+node_modules
+**/node_modules
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# IDE & OS
+.idea
+.vscode
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+frontend/dist
+backend/bin
+**/dist
+**/bin
+*.exe
+
+# Tests
+**/__tests__
+**/*_test.go
+**/*.test
+coverage.html
+*.out
+
+# Docs & misc
+docs
+*.md
+!README.md
+
+# Local env (never bake into image)
+.env
+.env.*
+!.env.example
+
+# Temporary
+tmp
+temp
+*.log
+*.tmp
+
+# Backups
+backups
+
+# Development
+.env.local
+.env.development
+*.local

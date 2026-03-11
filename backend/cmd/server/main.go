@@ -4,8 +4,10 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/hsmart/app/backend/internal/admin"
 	"github.com/hsmart/app/backend/internal/adminauth"
@@ -104,6 +106,13 @@ func run(ctx context.Context) error {
 
 	mux := http.NewServeMux()
 
+	// Health check (for Docker / load balancer)
+	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"status":"ok"}`))
+	})
+
 	// Admin auth (superadmin, no tenant)
 	adminAuthRepo := adminauth.NewRepository(pool)
 	adminAuthSvc := adminauth.NewService(adminAuthRepo, []byte(jwtSecret))
@@ -185,6 +194,20 @@ func run(ctx context.Context) error {
 	mux.Handle("GET /api/tenant/settings", protect(http.HandlerFunc(tenantHandler.GetSettings)))
 	mux.Handle("PUT /api/tenant/settings", protect(http.HandlerFunc(tenantHandler.UpdateSettings)))
 
+	// Serve frontend static files (SPA) when STATIC_DIR is set (production)
+	if staticDir := getEnv("STATIC_DIR", ""); staticDir != "" {
+		if info, err := os.Stat(staticDir); err == nil && info.IsDir() {
+			mux.Handle("/", spaFileServer(http.Dir(staticDir)))
+			log.Printf("[main] serving static from %s", staticDir)
+		}
+	} else {
+		// No static dir: API-only mode (frontend served elsewhere)
+		mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "text/plain")
+			w.Write([]byte("HSmart API"))
+		})
+	}
+
 	handler := middleware.Logging(middleware.CORS(middleware.RateLimit(mux)))
 
 	log.Printf("HSmart API listening on %s", addr)
@@ -196,4 +219,31 @@ func getEnv(key, defaultVal string) string {
 		return v
 	}
 	return defaultVal
+}
+
+// spaFileServer serves static files with SPA fallback: 404 serves index.html.
+func spaFileServer(root http.FileSystem) http.Handler {
+	fs := http.FileServer(root)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := strings.TrimPrefix(r.URL.Path, "/")
+		if path == "" {
+			path = "index.html"
+		}
+		f, err := root.Open(path)
+		if err != nil {
+			r2 := *r
+			r2.URL = &url.URL{Path: "/index.html"}
+			fs.ServeHTTP(w, &r2)
+			return
+		}
+		defer f.Close()
+		stat, err := f.Stat()
+		if err != nil || stat.IsDir() {
+			r2 := *r
+			r2.URL = &url.URL{Path: "/index.html"}
+			fs.ServeHTTP(w, &r2)
+			return
+		}
+		fs.ServeHTTP(w, r)
+	})
 }
