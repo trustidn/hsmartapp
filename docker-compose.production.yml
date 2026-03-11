@@ -18,7 +18,7 @@ services:
     image: hsmart:latest
     container_name: hsmart-app
     restart: always
-
+    network_mode: host
     ports:
       - "8080:8080"
 
