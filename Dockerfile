@@ -40,7 +40,9 @@ FROM alpine:3.19
 RUN adduser -D -u 1000 appuser
 
 # Minimal packages: ca-certificates for HTTPS clients, wget for healthcheck
-RUN apk update && apk add --no-cache ca-certificates tzdata wget
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories \
+ && apk update \
+ && apk add --no-cache ca-certificates tzdata wget
 
 WORKDIR /app
 
