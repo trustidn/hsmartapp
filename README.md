@@ -1,0 +1,147 @@
+# HSmart
+
+**HSmart** is a simple POS and business tracking application for micro merchants (UMKM): street food vendors, coffee stalls, small kiosks, drink sellers, gorengan sellers, and roadside merchants.
+
+- **Domain:** https://hsmart.app  
+- **Stack:** Go (backend), Vue 3 + Vite (frontend), PostgreSQL, Redis, PWA with offline-first (IndexedDB/Dexie).
+
+## Features
+
+- **POS:** Tap product → add to cart → Pay. Target &lt; 3 seconds per transaction.
+- **Daily summary:** Sales, expenses, profit, transaction count.
+- **Product ranking:** Best-selling products today.
+- **Quick expense:** One-tap expense recording.
+- **Offline-first:** Works without internet; syncs when back online.
+- **PWA:** Installable on Android, iOS, Windows, macOS, Linux.
+
+## Development lokal (tanpa Docker)
+
+Semua dijalankan langsung di mesin Anda. Docker tidak dipakai untuk development.
+
+### Prerequisites
+
+- **Go 1.22+**
+- **Node 18+**
+- **PostgreSQL 16** (jalan di local)
+- **Redis 7** (opsional; kalau tidak di-set, fitur cache report dinonaktifkan)
+
+### 1. Database
+
+Buat database dan jalankan migrasi (sekali saja):
+
+```bash
+createdb hsmart
+psql -d hsmart -f backend/migrations/001_init.up.sql
+```
+
+Sesuaikan user/password jika berbeda (default: `postgres`/`postgres`).
+
+### 2. Backend
+
+```bash
+cd backend
+export DATABASE_URL="postgres://postgres:postgres@localhost:5432/hsmart?sslmode=disable"
+export JWT_SECRET="rahasia-dev"
+
+# Opsional: cache report (tanpa ini pun backend jalan)
+# export REDIS_ADDR=localhost:6379
+
+go run ./cmd/server
+```
+
+API: **http://localhost:8080**
+
+### 3. Frontend
+
+Di terminal lain:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+App: **http://localhost:5173** — request `/api` di-proxy ke backend.
+
+### 4. Cek
+
+Buka http://localhost:5173 → Daftar (HP + password) → Login → Tambah Produk → POS → tap produk → BAYAR.
+
+## Project Structure
+
+```
+backend/
+  cmd/server/          # Entrypoint
+  internal/            # Auth, tenant, product, sales, expense, report, subscription
+  pkg/                 # database, cache, middleware
+  migrations/         # PostgreSQL migrations
+frontend/
+  src/
+    views/             # Login, Register, POS, Dashboard, Expenses, Products
+    stores/            # Pinia: auth, products, pos, sync
+    lib/               # api.js, db.js (Dexie IndexedDB)
+```
+
+## API Overview
+
+- **Public:** `POST /api/auth/login`, `POST /api/register`
+- **Protected (Header: `Authorization: Bearer <token>`, `X-Tenant-ID: <uuid>`):**
+  - Products: `GET/POST/PUT/DELETE /api/products`
+  - Sales: `POST /api/sales`, `GET /api/sales`, `GET /api/sales/get?id=`
+  - Expenses: `POST /api/expenses`, `GET /api/expenses`
+  - Report: `GET /api/report/daily`, `GET /api/report/ranking`, `GET /api/report/dashboard`
+  - Subscription: `GET /api/subscription`
+
+## PWA & Offline
+
+- **vite-plugin-pwa:** Service worker, manifest (`name: HSmart`, `theme_color: #16a34a`), installable app.
+- **Offline:** Sales and expenses are stored in IndexedDB (Dexie) when offline and synced when online.
+
+## Production Build (tanpa Docker)
+
+```bash
+# Frontend
+cd frontend && npm run build
+# Output: dist/ — serve dengan Nginx atau static host.
+
+# Backend
+cd backend && go build -o bin/server ./cmd/server
+```
+
+## Production dengan Docker
+
+Docker dipakai hanya untuk production/deployment, bukan untuk development.
+
+- **Backend:** `backend/Dockerfile` — build image Go API.
+- **Infra:** `docker-compose.yml` — PostgreSQL, Redis, dan service backend untuk production.
+
+Contoh deploy:
+
+```bash
+# Build & jalankan (production)
+docker compose up -d postgres redis
+# Migrasi sekali: psql -h localhost -U postgres -d hsmart -f backend/migrations/001_init.up.sql
+docker compose up -d backend
+# Frontend: build (npm run build) lalu serve dist/ lewat Nginx
+```
+
+Atau deploy backend sebagai image, PostgreSQL/Redis di managed service; frontend di CDN/static host.
+
+## Deployment (Nginx → Vue PWA + Go API)
+
+- Nginx: serve `frontend/dist` untuk `/`, proxy `/api` ke backend Go.
+- Backend: listen `:8080` (atau di belakang Nginx).
+- Set `DATABASE_URL`, `JWT_SECRET`, `REDIS_ADDR` di environment production.
+
+## Multi-tenant
+
+All business data is scoped by `tenant_id`. Every request must send `X-Tenant-ID` (and valid JWT). Registration creates a tenant and an owner user; login returns `tenant_id` for subsequent requests.
+
+## Plans
+
+- **Free:** Max 10 products, 7-day reports, single device.
+- **Premium:** Unlimited products, monthly reports, export, multi-device (Rp 10k–20k/month).
+
+---
+
+**Principle:** HSmart stays super simple, fast, mobile-first, offline-first, and easier than writing sales in a notebook.
