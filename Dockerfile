@@ -40,7 +40,7 @@ FROM alpine:3.19
 RUN adduser -D -u 1000 appuser
 
 # Minimal packages: ca-certificates for HTTPS clients, wget for healthcheck
-RUN apk --no-cache add ca-certificates tzdata wget
+RUN apk update && apk add --no-cache ca-certificates tzdata wget
 
 WORKDIR /app
 
