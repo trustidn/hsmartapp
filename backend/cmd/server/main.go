@@ -109,7 +109,7 @@ func run(ctx context.Context) error {
 	adminAuthSvc := adminauth.NewService(adminAuthRepo, []byte(jwtSecret))
 	adminAuthHandler := adminauth.NewHandler(adminAuthSvc)
 	adminGuard := middleware.AdminGuard([]byte(jwtSecret))
-	adminHandler := admin.NewHandler(tenantRepo, subRepo, planConfigRepo, salesRepo, suborderRepo)
+	adminHandler := admin.NewHandler(tenantRepo, subRepo, planConfigRepo, salesRepo, suborderRepo, authRepo)
 
 	authWrap := middleware.Auth([]byte(jwtSecret))
 	protect := func(h http.Handler) http.Handler {
@@ -118,10 +118,12 @@ func run(ctx context.Context) error {
 
 	mux.HandleFunc("POST /api/admin/auth/login", adminAuthHandler.Login)
 	mux.Handle("GET /api/admin/me", adminGuard(http.HandlerFunc(adminAuthHandler.Me)))
+	mux.Handle("PATCH /api/admin/profile", adminGuard(http.HandlerFunc(adminAuthHandler.UpdateProfile)))
 	mux.Handle("GET /api/admin/dashboard/stats", adminGuard(http.HandlerFunc(adminHandler.DashboardStats)))
 	mux.Handle("GET /api/admin/tenants", adminGuard(http.HandlerFunc(adminHandler.ListTenants)))
 	mux.Handle("GET /api/admin/tenants/get", adminGuard(http.HandlerFunc(adminHandler.GetTenant)))
 	mux.Handle("PATCH /api/admin/tenants/status", adminGuard(http.HandlerFunc(adminHandler.UpdateTenantStatus)))
+	mux.Handle("PATCH /api/admin/tenants/reset-password", adminGuard(http.HandlerFunc(adminHandler.ResetTenantPassword)))
 	mux.Handle("PATCH /api/admin/tenants/subscription", adminGuard(http.HandlerFunc(adminHandler.UpdateTenantSubscription)))
 	mux.Handle("POST /api/admin/tenants/subscription/revoke", adminGuard(http.HandlerFunc(adminHandler.RevokeTenantSubscription)))
 	mux.Handle("GET /api/admin/plans", adminGuard(http.HandlerFunc(adminHandler.ListPlanConfig)))

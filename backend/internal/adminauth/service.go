@@ -2,6 +2,8 @@ package adminauth
 
 import (
 	"context"
+	"errors"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -69,4 +71,79 @@ func (s *Service) createToken(adminID uuid.UUID) (string, error) {
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString(s.secret)
+}
+
+type Profile struct {
+	AdminID string `json:"admin_id"`
+	Name    string `json:"name"`
+	Email   string `json:"email"`
+	Role    string `json:"role"`
+}
+
+func (s *Service) GetProfile(ctx context.Context, adminID uuid.UUID) (*Profile, error) {
+	admin, err := s.repo.GetByID(ctx, adminID)
+	if err != nil {
+		return nil, err
+	}
+	return &Profile{
+		AdminID: admin.ID.String(),
+		Name:    admin.Name,
+		Email:   admin.Email,
+		Role:    RoleSuperadmin,
+	}, nil
+}
+
+type UpdateProfileInput struct {
+	Name            *string `json:"name"`
+	Email           *string `json:"email"`
+	CurrentPassword *string `json:"current_password"`
+	NewPassword     *string `json:"new_password"`
+}
+
+var (
+	ErrEmailTaken      = errors.New("email already in use")
+	ErrInvalidPassword = errors.New("current password invalid")
+)
+
+func (s *Service) UpdateProfile(ctx context.Context, adminID uuid.UUID, input UpdateProfileInput) error {
+	admin, err := s.repo.GetByID(ctx, adminID)
+	if err != nil {
+		return err
+	}
+	var name, email, passwordHash *string
+	if input.Name != nil {
+		n := strings.TrimSpace(*input.Name)
+		if n != "" {
+			name = &n
+		}
+	}
+	if input.Email != nil {
+		e := strings.TrimSpace(strings.ToLower(*input.Email))
+		if e != "" {
+			existing, _ := s.repo.GetByEmail(ctx, e)
+			if existing != nil && existing.ID != adminID {
+				return ErrEmailTaken
+			}
+			email = &e
+		}
+	}
+	if input.NewPassword != nil {
+		p := strings.TrimSpace(*input.NewPassword)
+		if len(p) < 6 {
+			return errors.New("password minimal 6 karakter")
+		}
+		if input.CurrentPassword == nil || *input.CurrentPassword == "" {
+			return ErrInvalidPassword
+		}
+		if err := bcrypt.CompareHashAndPassword([]byte(admin.PasswordHash), []byte(*input.CurrentPassword)); err != nil {
+			return ErrInvalidPassword
+		}
+		hash, err := bcrypt.GenerateFromPassword([]byte(p), bcrypt.DefaultCost)
+		if err != nil {
+			return err
+		}
+		h := string(hash)
+		passwordHash = &h
+	}
+	return s.repo.UpdateProfile(ctx, adminID, name, email, passwordHash)
 }

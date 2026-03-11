@@ -53,3 +53,11 @@ func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*UserRow, error
 	}
 	return &u, nil
 }
+
+// UpdateOwnerPasswordByTenantID updates the password_hash of the owner user for a tenant.
+func (r *Repository) UpdateOwnerPasswordByTenantID(ctx context.Context, tenantID uuid.UUID, passwordHash string) error {
+	_, err := r.pool.Exec(ctx, `
+		UPDATE users SET password_hash = $2 WHERE tenant_id = $1 AND role = 'owner'
+	`, tenantID, passwordHash)
+	return err
+}

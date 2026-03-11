@@ -6,15 +6,18 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/hsmart/app/backend/internal/auth"
 	"github.com/hsmart/app/backend/internal/planconfig"
 	"github.com/hsmart/app/backend/internal/sales"
 	"github.com/hsmart/app/backend/internal/suborder"
 	"github.com/hsmart/app/backend/internal/subscription"
 	"github.com/hsmart/app/backend/internal/tenant"
 	"github.com/hsmart/app/backend/pkg/middleware"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type Handler struct {
@@ -23,15 +26,17 @@ type Handler struct {
 	planConfigRepo   *planconfig.Repository
 	salesRepo        *sales.Repository
 	suborderRepo     *suborder.Repository
+	authRepo         *auth.Repository
 }
 
-func NewHandler(tenantRepo *tenant.Repository, subscriptionRepo *subscription.Repository, planConfigRepo *planconfig.Repository, salesRepo *sales.Repository, suborderRepo *suborder.Repository) *Handler {
+func NewHandler(tenantRepo *tenant.Repository, subscriptionRepo *subscription.Repository, planConfigRepo *planconfig.Repository, salesRepo *sales.Repository, suborderRepo *suborder.Repository, authRepo *auth.Repository) *Handler {
 	return &Handler{
 		tenantRepo:       tenantRepo,
 		subscriptionRepo: subscriptionRepo,
 		planConfigRepo:   planConfigRepo,
 		salesRepo:        salesRepo,
 		suborderRepo:     suborderRepo,
+		authRepo:         authRepo,
 	}
 }
 
@@ -224,6 +229,50 @@ func (h *Handler) UpdateTenantStatus(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": input.Status})
+}
+
+func (h *Handler) ResetTenantPassword(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPatch && r.Method != http.MethodPut {
+		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+		return
+	}
+	var input struct {
+		ID          string `json:"id"`
+		NewPassword string `json:"new_password"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, `{"error":"invalid body"}`, http.StatusBadRequest)
+		return
+	}
+	if input.ID == "" || strings.TrimSpace(input.NewPassword) == "" {
+		http.Error(w, `{"error":"id and new_password required"}`, http.StatusBadRequest)
+		return
+	}
+	if len(input.NewPassword) < 6 {
+		http.Error(w, `{"error":"password minimal 6 karakter"}`, http.StatusBadRequest)
+		return
+	}
+	tenantID, err := uuid.Parse(input.ID)
+	if err != nil {
+		http.Error(w, `{"error":"invalid id"}`, http.StatusBadRequest)
+		return
+	}
+	// Verify tenant exists
+	if _, err := h.tenantRepo.GetByID(r.Context(), tenantID); err != nil {
+		http.Error(w, `{"error":"tenant not found"}`, http.StatusNotFound)
+		return
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(input.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		http.Error(w, `{"error":"failed to hash password"}`, http.StatusInternalServerError)
+		return
+	}
+	if err := h.authRepo.UpdateOwnerPasswordByTenantID(r.Context(), tenantID, string(hash)); err != nil {
+		http.Error(w, `{"error":"failed to reset password"}`, http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"message": "password reset successfully"})
 }
 
 func (h *Handler) UpdateTenantSubscription(w http.ResponseWriter, r *http.Request) {

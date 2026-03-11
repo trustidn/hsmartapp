@@ -30,6 +30,26 @@
         <!-- Info card -->
         <section class="p-5 bg-white rounded-2xl shadow-sm border border-gray-100">
           <h2 class="text-sm font-medium text-gray-500 mb-3">Informasi</h2>
+          <!-- Reset password -->
+          <div class="mb-4 pb-4 border-b border-gray-100">
+            <label class="block text-xs text-gray-600 mb-1">Reset Password Tenant</label>
+            <p class="text-xs text-gray-500 mb-2">Tenant login dengan nomor HP. Setelah direset, password baru akan menggantikan password lama.</p>
+            <div class="flex gap-2">
+              <input
+                v-model="resetPasswordForm.newPassword"
+                type="password"
+                placeholder="Password baru (min 6 karakter)"
+                class="flex-1 px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-primary-400 text-sm"
+              />
+              <button
+                @click="resetTenantPassword"
+                :disabled="resetPasswordLoading || !resetPasswordForm.newPassword || resetPasswordForm.newPassword.length < 6"
+                class="px-4 py-2 rounded-xl bg-amber-600 text-white font-medium hover:bg-amber-700 disabled:opacity-50 text-sm"
+              >
+                {{ resetPasswordLoading ? '...' : 'Reset' }}
+              </button>
+            </div>
+          </div>
           <dl class="space-y-2 text-sm">
             <div class="flex justify-between">
               <dt class="text-gray-500">Status</dt>
@@ -196,6 +216,8 @@ const revokeLoading = ref(false)
 const expiryLoading = ref(false)
 const subForm = ref({ plan: 'free' })
 const expiryForm = ref({ date: '' })
+const resetPasswordForm = ref({ newPassword: '' })
+const resetPasswordLoading = ref(false)
 
 const id = computed(() => route.params.id)
 const planOptions = ref([])
@@ -314,6 +336,25 @@ async function updateExpiry() {
     toast(e.message || 'Gagal mengubah tanggal kadaluarsa', 'error')
   } finally {
     expiryLoading.value = false
+  }
+}
+
+async function resetTenantPassword() {
+  const pwd = resetPasswordForm.value.newPassword?.trim()
+  if (!pwd || pwd.length < 6) {
+    toast('Password baru minimal 6 karakter', 'error')
+    return
+  }
+  if (!confirm('Yakin reset password tenant ini? Tenant harus login dengan password baru.')) return
+  resetPasswordLoading.value = true
+  try {
+    await adminApi.tenants.resetPassword(id.value, pwd)
+    resetPasswordForm.value.newPassword = ''
+    toast('Password berhasil direset')
+  } catch (e) {
+    toast(e.message || 'Gagal reset password', 'error')
+  } finally {
+    resetPasswordLoading.value = false
   }
 }
 </script>

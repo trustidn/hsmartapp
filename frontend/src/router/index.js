@@ -27,6 +27,7 @@ const routes = [
       { path: 'plans', name: 'AdminPlans', component: () => import('../views/admin/AdminPlans.vue'), meta: { title: 'Pengaturan Plan' } },
       { path: 'subscription-orders', name: 'AdminSubscriptionOrders', component: () => import('../views/admin/AdminSubscriptionOrders.vue'), meta: { title: 'Order Langganan' } },
       { path: 'saas-settings', name: 'AdminSaasSettings', component: () => import('../views/admin/AdminSaasSettings.vue'), meta: { title: 'Pengaturan SaaS' } },
+      { path: 'profile', name: 'AdminProfile', component: () => import('../views/admin/AdminProfile.vue'), meta: { title: 'Profil Admin' } },
     ],
   },
   {

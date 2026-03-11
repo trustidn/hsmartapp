@@ -34,6 +34,10 @@ async function adminRequest(method, path, body) {
 }
 
 export const adminApi = {
+  profile: {
+    get: () => adminRequest('GET', '/admin/me'),
+    update: (data) => adminRequest('PATCH', '/admin/profile', data),
+  },
   dashboard: {
     stats: () => adminRequest('GET', '/admin/dashboard/stats'),
   },
@@ -52,6 +56,8 @@ export const adminApi = {
       adminRequest('PATCH', '/admin/tenants/subscription', { id, ...(data || {}) }),
     revokeSubscription: (id) =>
       adminRequest('POST', '/admin/tenants/subscription/revoke', { id }),
+    resetPassword: (id, newPassword) =>
+      adminRequest('PATCH', '/admin/tenants/reset-password', { id, new_password: newPassword }),
   },
   saasSettings: {
     get: () => adminRequest('GET', '/admin/saas-settings'),

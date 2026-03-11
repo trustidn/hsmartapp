@@ -48,6 +48,12 @@ export const useAdminAuthStore = defineStore('adminAuth', {
       })
       return data
     },
+    updateProfile(data) {
+      if (data.name != null) {
+        this.name = data.name
+        localStorage.setItem(ADMIN_NAME, data.name)
+      }
+    },
     logout() {
       this.token = null
       this.adminId = null
