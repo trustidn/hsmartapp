@@ -1,19 +1,38 @@
-# Dependencies
-node_modules
-**/node_modules
+# =============================================================================
+# HSmart Docker Build Context - Exclusions
+# =============================================================================
+# Reduces image size and speeds up builds
+# =============================================================================
 
-# Git
+# Version control
 .git
 .gitignore
 .gitattributes
 
-# IDE & OS
-.idea
-.vscode
-*.swp
-*.swo
-.DS_Store
-Thumbs.db
+# Dependencies
+node_modules
+frontend/node_modules
+**/node_modules
+
+# Environment and secrets
+.env
+.env.*
+
+# Docker files (avoid recursive copy)
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# Logs and temporary
+*.log
+tmp
+cache
+temp
+*.tmp
+
+# User uploads (never bake into image)
+uploads
+backups
 
 # Build artifacts
 frontend/dist
@@ -29,26 +48,14 @@ backend/bin
 coverage.html
 *.out
 
+# IDE & OS
+.idea
+.vscode
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
 # Docs & misc
 docs
 *.md
-!README.md
-
-# Local env (never bake into image)
-.env
-.env.*
-!.env.example
-
-# Temporary
-tmp
-temp
-*.log
-*.tmp
-
-# Backups
-backups
-
-# Development
-.env.local
-.env.development
-*.local

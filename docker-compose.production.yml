@@ -23,10 +23,10 @@ services:
       - "8080:8080"
 
     environment:
-      # Database (host PostgreSQL)
-      DATABASE_URL: postgres://${DB_USER:-hsmartapp_user}:${DB_PASSWORD:-P4ssword90901}@${DB_HOST:-host.docker.internal}:${DB_PORT:-5432}/${DB_NAME:-hsmartapp_saas}?sslmode=disable
+      # Database (host PostgreSQL) - required vars; compose fails if missing
+      DATABASE_URL: postgres://${DB_USER:?DB_USER required}:${DB_PASSWORD:?DB_PASSWORD required}@${DB_HOST:-host.docker.internal}:${DB_PORT:-5432}/${DB_NAME:?DB_NAME required}?sslmode=disable
 
-      # Security (REQUIRED - override in .env)
+      # Security (REQUIRED)
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
 
       # Application
@@ -39,6 +39,7 @@ services:
       REDIS_ADDR: ${REDIS_ADDR:-}
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
 
+    # Persistent volume: uploads survive container restarts
     volumes:
       - hsmart_uploads:/app/uploads
 

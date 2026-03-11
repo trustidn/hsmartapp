@@ -7,9 +7,9 @@ FROM node:20-alpine AS frontend-builder
 
 WORKDIR /app/frontend
 
-# Install all dependencies (devDependencies needed for build)
-COPY frontend/package.json frontend/package-lock.json* ./
-RUN npm ci 2>/dev/null || npm install
+# Install dependencies - strict: package-lock.json required
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
 
 COPY frontend/ ./
 RUN npm run build
@@ -27,7 +27,7 @@ RUN go mod download
 
 COPY backend/ ./
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
-    -ldflags="-s -w" \
+    -ldflags="-s -w -buildid=" \
     -o /server \
     ./cmd/server
 
@@ -60,7 +60,7 @@ USER appuser
 EXPOSE 8080
 
 # Healthcheck
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
     CMD wget -q -O- http://localhost:8080/api/health || exit 1
 
 ENTRYPOINT ["/app/server"]
