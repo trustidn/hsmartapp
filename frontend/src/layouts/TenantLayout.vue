@@ -42,39 +42,43 @@
       style="bottom: max(1rem, env(safe-area-inset-bottom))"
     >
       <div
-        class="flex items-center gap-1 px-3 py-2 rounded-2xl bg-white/95 backdrop-blur-xl shadow-lg shadow-black/10 border border-gray-100/80 nav-dock-inner"
+        class="flex items-center justify-between w-full px-1 py-2 rounded-2xl bg-white/95 backdrop-blur-xl shadow-lg shadow-black/10 border border-gray-100/80 nav-dock-inner"
         style="max-width: 360px"
       >
         <router-link
           v-for="item in bottomNavItems"
           :key="item.to"
           :to="item.to"
-          class="flex flex-col items-center justify-center rounded-xl transition-colors gap-0.5"
+          class="flex flex-col items-center justify-center w-14 min-w-[3.5rem] py-2 rounded-xl transition-all duration-200 gap-1 touch-manipulation"
           :class="[
-            item.featured ? 'min-w-[56px] py-2.5 px-2 -mt-1' : 'min-w-[48px] py-2 px-1',
             item.featured
               ? isActive(item)
-                ? 'text-primary-600 bg-primary-50'
-                : 'text-primary-500 hover:bg-primary-50/50 hover:text-primary-600'
+                ? 'text-primary-600 bg-primary-50 ring-1 ring-primary-200/60'
+                : 'text-primary-500 hover:bg-primary-50/60 hover:text-primary-600 ring-1 ring-primary-100/40'
               : isActive(item)
-                ? 'text-primary-600 bg-primary-50'
+                ? 'text-primary-600 bg-primary-50/80'
                 : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700',
           ]"
         >
-          <span class="leading-none [&_svg]:inline-block" :class="item.featured ? '[&_svg]:w-7 [&_svg]:h-7' : 'text-lg [&_svg]:w-5 [&_svg]:h-5'" v-html="item.icon" />
-          <span class="text-[10px] font-medium leading-tight">{{ item.label }}</span>
+          <span class="leading-none [&_svg]:inline-block flex-shrink-0" :class="item.featured ? '[&_svg]:w-6 [&_svg]:h-6' : '[&_svg]:w-5 [&_svg]:h-5'" v-html="item.icon" />
+          <span class="text-[10px] font-medium leading-tight text-center truncate w-full px-0.5">{{ item.label }}</span>
         </router-link>
       </div>
     </nav>
+
+    <!-- Onboarding tour untuk tenant baru -->
+    <OnboardingTour :tenant-id="auth.tenantId || ''" />
   </div>
 </template>
 
 <script setup>
 import { computed, onMounted } from 'vue'
+import OnboardingTour from '../components/OnboardingTour.vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useSettingsStore } from '../stores/settings'
 import { useSaasSettingsStore } from '../stores/saasSettings'
+import { useSubscriptionStore } from '../stores/subscription'
 
 const navIcons = {
   pos: '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z"/></svg>',
@@ -89,6 +93,7 @@ const router = useRouter()
 const auth = useAuthStore()
 const settings = useSettingsStore()
 const saasSettings = useSaasSettingsStore()
+const subscriptionStore = useSubscriptionStore()
 
 const pageTitle = computed(() => {
   const m = route.matched[route.matched.length - 1]?.meta
@@ -101,6 +106,7 @@ onMounted(() => {
   if (auth.tenantId) {
     settings.load(auth.tenantId)
     saasSettings.loadForTenant()
+    subscriptionStore.load(auth.tenantId)
   }
 })
 

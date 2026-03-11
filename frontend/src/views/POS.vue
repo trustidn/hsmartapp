@@ -22,10 +22,10 @@
 
     <!-- Products: scroll only when needed -->
     <div class="products-scroll flex-1 overflow-y-auto pt-1 pb-64">
-      <div v-if="products.loading" class="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
-        <div v-for="i in 9" :key="i" class="product-card-skeleton rounded-xl" />
+      <div v-if="products.loading" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-3">
+        <div v-for="i in 8" :key="i" class="product-card-skeleton rounded-2xl" />
       </div>
-      <div v-else class="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
+      <div v-else class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-3">
         <button
           v-for="p in filteredProducts"
           :key="p.id"
@@ -472,35 +472,40 @@ function formatNum(n) {
   min-height: 0;
 }
 
-/* Product card: minimalis, modern */
+/* Product card: modern, touch-friendly */
 .product-card {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 4.5rem;
-  padding: 0.625rem 0.5rem;
-  background: white;
-  border: 1px solid rgb(229 231 235);
-  border-radius: 0.75rem;
-  transition: all 0.15s ease;
+  min-height: 5.25rem;
+  padding: 0.875rem 0.625rem;
+  background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid rgb(226 232 240);
+  border-radius: 1rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: all 0.2s ease;
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 .product-card:hover {
   border-color: rgb(203 213 225);
-  background: rgb(248 250 252);
+  background: linear-gradient(145deg, #f8fafc 0%, #f1f5f9 100%);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transform: translateY(-1px);
 }
 .product-card:active {
-  transform: scale(0.97);
-  background: rgb(240 253 244);
-  border-color: rgba(22, 163, 74, 0.4);
+  transform: scale(0.97) translateY(0);
+  background: linear-gradient(145deg, #ecfdf5 0%, #d1fae5 100%);
+  border-color: rgba(22, 163, 74, 0.35);
+  box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.15);
 }
 .product-name {
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: rgb(31 41 55);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: rgb(30 41 59);
   text-align: center;
-  line-height: 1.25;
+  line-height: 1.3;
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
@@ -509,30 +514,31 @@ function formatNum(n) {
   width: 100%;
 }
 .product-price {
-  font-size: 0.6875rem;
-  font-weight: 500;
+  font-size: 0.75rem;
+  font-weight: 600;
   color: #16a34a;
-  margin-top: 0.25rem;
-  letter-spacing: 0.01em;
+  margin-top: 0.375rem;
+  letter-spacing: 0.02em;
 }
 .product-card-skeleton {
-  min-height: 4.5rem;
-  background: rgb(229 231 235);
-  animation: product-pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  min-height: 5.25rem;
+  background: linear-gradient(90deg, rgb(241 245 249) 25%, rgb(226 232 240) 50%, rgb(241 245 249) 75%);
+  background-size: 200% 100%;
+  animation: product-shimmer 1.2s ease-in-out infinite;
 }
-@keyframes product-pulse {
-  0%, 100% { opacity: 1 }
-  50% { opacity: 0.5 }
+@keyframes product-shimmer {
+  0% { background-position: 200% 0 }
+  100% { background-position: -200% 0 }
 }
 @media (min-width: 640px) {
-  .product-card { min-height: 5rem; padding: 0.75rem 0.625rem; }
-  .product-name { font-size: 0.8125rem; }
-  .product-price { font-size: 0.75rem; }
-}
-@media (min-width: 1024px) {
-  .product-card { min-height: 5.5rem; padding: 0.875rem 0.75rem; }
+  .product-card { min-height: 5.5rem; padding: 1rem 0.75rem; }
   .product-name { font-size: 0.875rem; }
   .product-price { font-size: 0.8125rem; }
+}
+@media (min-width: 1024px) {
+  .product-card { min-height: 6rem; padding: 1.125rem 0.875rem; }
+  .product-name { font-size: 0.9375rem; }
+  .product-price { font-size: 0.875rem; }
 }
 
 /* Cart: lebar sama dengan bottom nav (360px), jarak cukup dari bottom nav */

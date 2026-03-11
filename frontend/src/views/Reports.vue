@@ -4,10 +4,32 @@
       Offline — laporan memerlukan koneksi internet.
     </div>
 
+    <!-- Banner limit / expired (hanya setelah data subscription ter-load) -->
+    <div v-if="!planLimits.loading && (planLimits.reportLimitMessage || planLimits.isExpired)" class="mb-4 space-y-2">
+      <div
+        v-if="planLimits.isExpired"
+        class="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between gap-3"
+      >
+        <p class="text-amber-800 text-sm">Langganan Anda telah kadaluarsa. Laporan dibatasi.</p>
+        <router-link to="/subscription" class="shrink-0 px-4 py-2 rounded-xl bg-amber-600 text-white text-sm font-medium">
+          Perpanjang
+        </router-link>
+      </div>
+      <div
+        v-else-if="planLimits.reportLimitMessage"
+        class="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center justify-between gap-3"
+      >
+        <p class="text-blue-800 text-sm">{{ planLimits.reportLimitMessage }}</p>
+        <router-link to="/subscription" class="shrink-0 px-4 py-2 rounded-xl bg-primary-600 text-white text-sm font-medium">
+          Upgrade
+        </router-link>
+      </div>
+    </div>
+
     <!-- Period filter -->
     <div class="flex gap-2 mb-4 overflow-x-auto pb-2">
       <button
-        v-for="f in filters"
+        v-for="f in reportFilters"
         :key="f.key"
         type="button"
         class="flex-none px-4 py-2 rounded-xl font-medium text-sm whitespace-nowrap"
@@ -45,7 +67,27 @@
     <template v-else>
       <!-- Summary section -->
       <section class="bg-white rounded-2xl shadow-sm p-5 mb-4">
-        <h2 class="text-sm font-medium text-gray-500 mb-3">Ringkasan {{ filterLabel }}</h2>
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <h2 class="text-sm font-medium text-gray-500">Ringkasan {{ filterLabel }}</h2>
+          <div class="flex gap-2">
+            <button
+              type="button"
+              class="px-4 py-2 rounded-xl text-sm font-medium border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              :disabled="exporting"
+              @click="exportExcel"
+            >
+              {{ exporting ? '...' : 'Ekspor Excel' }}
+            </button>
+            <button
+              type="button"
+              class="px-4 py-2 rounded-xl text-sm font-medium bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+              :disabled="exporting"
+              @click="exportPdf"
+            >
+              {{ exporting ? '...' : 'Ekspor PDF' }}
+            </button>
+          </div>
+        </div>
         <div class="grid grid-cols-3 gap-4">
           <div>
             <p class="text-xs text-gray-500">Penjualan</p>
@@ -195,15 +237,20 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { useSettingsStore } from '../stores/settings'
+import { useProductsStore } from '../stores/products'
+import { usePlanLimits } from '../composables/usePlanLimits'
 import { api, isOnline, toLocalDateStr } from '../lib/api'
 import * as db from '../lib/db'
 import ReceiptContent from '../components/ReceiptContent.vue'
+import { exportReportPdf, exportReportCsv } from '../lib/exportReport'
 
 const auth = useAuthStore()
 const settingsStore = useSettingsStore()
+const productsStore = useProductsStore()
+const planLimits = usePlanLimits(auth, productsStore)
 const settings = computed(() => settingsStore.settings)
 const loading = ref(true)
 const filter = ref('today')
@@ -214,17 +261,22 @@ const allTransactions = ref([])
 const allExpenses = ref([])
 const selectedSale = ref(null)
 const txPage = ref(1)
+const exporting = ref(false)
 const expPage = ref(1)
 const pageSize = 10
 
-const filters = [
-  { key: 'today', label: 'Hari Ini' },
-  { key: '7d', label: '7 Hari' },
-  { key: '30d', label: '30 Hari' },
-  { key: '12m', label: '12 Bulan' },
-]
+const reportFilters = computed(() => {
+  const allowed = planLimits.allowedReportFilters.value
+  if (allowed.length > 0) return allowed
+  return [
+    { key: 'today', label: 'Hari Ini', days: 1 },
+    { key: '7d', label: '7 Hari', days: 7 },
+    { key: '30d', label: '30 Hari', days: 30 },
+    { key: '12m', label: '12 Bulan', days: 365 },
+  ]
+})
 
-const filterLabel = computed(() => filters.find((f) => f.key === filter.value)?.label ?? 'Hari Ini')
+const filterLabel = computed(() => reportFilters.value.find((f) => f.key === filter.value)?.label ?? 'Hari Ini')
 
 const displayedTransactions = computed(() => {
   if (allTransactions.value.length > 0) {
@@ -385,6 +437,48 @@ function formatDateTime(s) {
   })
 }
 
+async function exportPdf() {
+  exporting.value = true
+  try {
+    const { tx, exp } = await fetchAllForExport()
+    exportReportPdf(summary.value, tx, exp, filterLabel.value, settings.value)
+  } finally {
+    exporting.value = false
+  }
+}
+
+async function exportExcel() {
+  exporting.value = true
+  try {
+    const { tx, exp } = await fetchAllForExport()
+    exportReportCsv(summary.value, tx, exp, filterLabel.value)
+  } finally {
+    exporting.value = false
+  }
+}
+
+async function fetchAllForExport() {
+  const { fromStr, toStr } = getDateRange()
+  if (!isOnline()) {
+    return {
+      tx: allTransactions.value,
+      exp: allExpenses.value,
+    }
+  }
+  try {
+    const [txRes, expRes] = await Promise.all([
+      api.sales.list(fromStr, toStr, undefined, 9999, 0),
+      api.expenses.list(fromStr, toStr, undefined, 9999, 0),
+    ])
+    return {
+      tx: normalizeSalesList(txRes),
+      exp: Array.isArray(expRes) ? expRes : [],
+    }
+  } catch {
+    return { tx: transactions.value, exp: expenses.value }
+  }
+}
+
 function downloadPdf() {
   if (!selectedSale.value) return
   import('../lib/receipt').then(({ exportReceiptPdf }) => {
@@ -406,6 +500,21 @@ function shareWhatsApp() {
 
 onMounted(async () => {
   if (auth.tenantId) await settingsStore.load(auth.tenantId)
+  await planLimits.load()
+  syncFilterToAllowed()
   load()
 })
+
+watch(
+  () => planLimits.allowedReportFilters.value,
+  () => syncFilterToAllowed(),
+  { deep: true }
+)
+function syncFilterToAllowed() {
+  const allowed = planLimits.allowedReportFilters.value || []
+  if (allowed.length && !allowed.find((f) => f.key === filter.value)) {
+    filter.value = allowed[0].key
+    load()
+  }
+}
 </script>

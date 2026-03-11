@@ -3,6 +3,15 @@
     <div v-if="isOffline" class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 text-center">
       <p class="text-amber-800 text-sm">Anda offline. Hanya data hari ini yang tersedia.</p>
     </div>
+    <div
+      v-else-if="subscriptionExpired"
+      class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 flex items-center justify-between gap-3"
+    >
+      <p class="text-amber-800 text-sm">Langganan Anda telah kadaluarsa. Beberapa fitur dibatasi.</p>
+      <router-link to="/subscription" class="shrink-0 px-4 py-2 rounded-xl bg-amber-600 text-white text-sm font-medium">
+        Perpanjang
+      </router-link>
+    </div>
     <!-- Selamat datang + Plan -->
     <section class="bg-gradient-to-r from-primary-500 to-primary-600 rounded-2xl p-4 mb-4 text-white shadow-sm">
       <p class="text-sm opacity-90">Selamat datang,</p>
@@ -10,13 +19,24 @@
       <div class="flex flex-wrap gap-3 mt-3 pt-3 border-t border-white/20">
         <div>
           <p class="text-xs opacity-80">Plan</p>
-          <p class="font-semibold capitalize">{{ planLabel }}</p>
+          <p class="font-semibold">{{ planLabel }}</p>
         </div>
         <div>
           <p class="text-xs opacity-80">Sisa waktu</p>
           <p class="font-semibold">{{ planRemaining }}</p>
         </div>
       </div>
+      <!-- Fitur plan -->
+      <div v-if="currentPlanConfig" class="mt-2 pt-2 border-t border-white/20 text-xs opacity-90 space-y-0.5">
+        <p>Durasi {{ formatDuration(currentPlanConfig.duration_days) }} · Max {{ formatLimit(currentPlanConfig.max_products) }} produk · Laporan {{ formatReportDays(currentPlanConfig.report_days) }}</p>
+        <p v-if="currentPlan === 'free'" class="mt-1 opacity-95">Fitur laporan terbatas. Upgrade untuk data laporan yang lebih banyak.</p>
+      </div>
+      <router-link
+        to="/subscription"
+        class="mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/20 hover:bg-white/30 font-medium text-sm transition-colors"
+      >
+        Upgrade / Perpanjang
+      </router-link>
     </section>
     <!-- Order belum selesai -->
     <section v-if="pendingOrders.length" class="bg-white rounded-2xl shadow-sm p-4 mb-4 border border-amber-100">
@@ -54,10 +74,7 @@
         :key="f.key"
         type="button"
         class="flex-none px-4 py-2 rounded-xl font-medium text-sm whitespace-nowrap"
-        :class="[
-          filter === f.key ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 border border-gray-200',
-          isOffline && f.key !== 'today' ? 'opacity-50 pointer-events-none' : '',
-        ]"
+        :class="filter === f.key ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 border border-gray-200'"
         @click="filter = f.key; load()"
       >
         {{ f.label }}
@@ -109,6 +126,12 @@
             <p class="text-lg font-semibold">{{ data?.transactions ?? 0 }}</p>
           </div>
         </div>
+        <router-link
+          to="/reports"
+          class="mt-4 pt-3 border-t border-gray-100 block text-center text-sm font-medium text-primary-600 hover:text-primary-700"
+        >
+          Lihat laporan lengkap →
+        </router-link>
       </section>
       <section v-if="chartData?.length" class="bg-white rounded-2xl shadow-sm p-5 mb-4">
         <h2 class="text-sm font-medium text-gray-500 mb-3">Grafik Penjualan Minggu Ini (Minggu–Sabtu)</h2>
@@ -155,31 +178,39 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { useSettingsStore } from '../stores/settings'
+import { useProductsStore } from '../stores/products'
+import { useSubscriptionStore } from '../stores/subscription'
+import { usePlanLimits } from '../composables/usePlanLimits'
 import { api, isOnline, toLocalDateStr } from '../lib/api'
 import * as db from '../lib/db'
 
 const auth = useAuthStore()
 const settings = useSettingsStore()
+const productsStore = useProductsStore()
+const dashboardPlanLimits = usePlanLimits(auth, productsStore)
 const loading = ref(true)
 const filter = ref('today')
 const dashboardData = ref(null)
 const subscription = ref(null)
 const pendingOrders = ref([])
+const plans = ref([])
 
-const filters = [
-  { key: 'today', label: 'Hari Ini' },
-  { key: '7d', label: '7 Hari' },
-  { key: '30d', label: '30 Hari' },
-  { key: '12m', label: '12 Bulan' },
-]
-
+const filters = computed(() => {
+  if (isOffline.value) return [{ key: 'today', label: 'Hari Ini', days: 1 }]
+  const allowed = dashboardPlanLimits.allowedReportFilters
+  if (allowed?.length) return allowed
+  return [{ key: 'today', label: 'Hari Ini', days: 1 }, { key: '7d', label: '7 Hari', days: 7 }]
+})
 const isOffline = computed(() => !isOnline())
-const filterLabel = computed(() => filters.find(f => f.key === filter.value)?.label ?? 'Hari Ini')
+const filterLabel = computed(() => filters.value.find(f => f.key === filter.value)?.label ?? 'Hari Ini')
 const tenantName = computed(() => settings.settings?.name || auth.name || 'Toko')
-const planLabel = computed(() => (subscription.value?.plan || 'free').replace(/^./, (c) => c.toUpperCase()))
+const planLabels = { free: 'Free', premium_1m: 'Premium 1 Bulan', premium_3m: 'Premium 3 Bulan', premium_6m: 'Premium 6 Bulan', premium_1y: 'Premium 1 Tahun', platinum: 'Platinum' }
+const planLabel = computed(() => planLabels[subscription.value?.plan || 'free'] || (subscription.value?.plan || 'free'))
+const currentPlan = computed(() => subscription.value?.plan || 'free')
+const currentPlanConfig = computed(() => plans.value.find((p) => p.plan_slug === currentPlan.value))
 const planRemaining = computed(() => {
   const exp = subscription.value?.expired_at
   if (!exp) return 'Tanpa batas'
@@ -191,6 +222,14 @@ const planRemaining = computed(() => {
   const hours = Math.floor((ms % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000))
   if (days > 0) return `${days} hari`
   return `${hours} jam`
+})
+
+// Pakai data subscription yang sama seperti planRemaining - konsisten
+const subscriptionExpired = computed(() => {
+  const exp = subscription.value?.expired_at
+  if (!exp) return false
+  const end = new Date(exp)
+  return !Number.isNaN(end.getTime()) && end < new Date()
 })
 
 const data = computed(() => {
@@ -217,6 +256,22 @@ const maxChartTotal = computed(() => {
   return Math.max(...arr.map(x => x.total), 1)
 })
 
+function formatDuration(days) {
+  if (days == null || days <= 0) return 'tanpa batas'
+  if (days >= 365) return '1 tahun'
+  if (days >= 180) return '6 bulan'
+  if (days >= 90) return '3 bulan'
+  if (days >= 30) return '1 bulan'
+  return `${days} hari`
+}
+function formatLimit(n) {
+  if (n == null || n < 0) return 'tak terbatas'
+  return n.toLocaleString('id-ID')
+}
+function formatReportDays(n) {
+  if (n == null || n < 0) return 'tak terbatas'
+  return `${n} hari`
+}
 function barHeight(item) {
   if (!item || maxChartTotal.value <= 0) return 4
   return Math.max(20, (item.total / maxChartTotal.value) * 120)
@@ -228,17 +283,38 @@ function formatCompact(n) {
   return num.toLocaleString('id-ID')
 }
 
+watch(
+  () => filters.value.map((f) => f.key),
+  (allowedKeys) => {
+    if (allowedKeys.length && !allowedKeys.includes(filter.value)) {
+      filter.value = allowedKeys[0]
+      load()
+    }
+  },
+  { immediate: true }
+)
+
 onMounted(async () => {
   if (auth.tenantId && !settings.settings) await settings.load(auth.tenantId)
-  loadSubscription()
+  await loadSubscription()
+  await dashboardPlanLimits.load()
   loadPendingOrders()
   load()
+  try {
+    const res = await api.plans.list()
+    plans.value = res.plans || []
+  } catch {
+    plans.value = []
+  }
 })
 
 async function loadSubscription() {
   if (!auth.tenantId || isOffline.value) return
+  const subStore = useSubscriptionStore()
   try {
-    subscription.value = await api.subscription.get()
+    const data = await api.subscription.get()
+    subscription.value = data
+    subStore.data = data
   } catch {
     subscription.value = null
   }
@@ -255,7 +331,6 @@ async function loadPendingOrders() {
   }
 }
 
-const planLabels = { free: 'Free', premium_1m: 'Premium 1 Bulan', premium_3m: 'Premium 3 Bulan', premium_6m: 'Premium 6 Bulan', premium_1y: 'Premium 1 Tahun', platinum: 'Platinum' }
 function planLabelFromSlug(slug) {
   return planLabels[slug] || slug || '-'
 }

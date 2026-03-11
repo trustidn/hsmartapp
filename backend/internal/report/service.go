@@ -6,16 +6,40 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/hsmart/app/backend/internal/planconfig"
+	"github.com/hsmart/app/backend/internal/subscription"
 	"github.com/hsmart/app/backend/pkg/cache"
 )
 
 type Service struct {
-	repo  *Repository
-	redis *cache.Redis
+	repo         *Repository
+	redis        *cache.Redis
+	subRepo      *subscription.Repository
+	planConfig   *planconfig.Repository
 }
 
-func NewService(repo *Repository, r *cache.Redis) *Service {
-	return &Service{repo: repo, redis: r}
+func NewService(repo *Repository, r *cache.Redis, subRepo *subscription.Repository, planConfig *planconfig.Repository) *Service {
+	return &Service{repo: repo, redis: r, subRepo: subRepo, planConfig: planConfig}
+}
+
+func (s *Service) effectivePlan(ctx context.Context, tenantID uuid.UUID) string {
+	sub, err := s.subRepo.GetByTenant(ctx, tenantID)
+	if err != nil {
+		return "free"
+	}
+	if sub.ExpiredAt != nil && *sub.ExpiredAt != "" {
+		var t time.Time
+		for _, layout := range []string{time.RFC3339, "2006-01-02", "2006-01-02 15:04:05-07"} {
+			if parsed, err := time.Parse(layout, *sub.ExpiredAt); err == nil {
+				t = parsed
+				break
+			}
+		}
+		if !t.IsZero() && t.Before(time.Now()) {
+			return "free"
+		}
+	}
+	return sub.Plan
 }
 
 type DashboardResult struct {
@@ -90,6 +114,14 @@ type DashboardRangeResult struct {
 }
 
 func (s *Service) DashboardRange(ctx context.Context, tenantID uuid.UUID, from, to time.Time, tzName string) (*DashboardRangeResult, error) {
+	plan := s.effectivePlan(ctx, tenantID)
+	reportDays := s.planConfig.GetReportDays(ctx, plan)
+	if reportDays >= 0 {
+		days := int(to.Sub(from).Hours()/24) + 1
+		if days > reportDays {
+			from = to.AddDate(0, 0, -reportDays+1)
+		}
+	}
 	rangeSummary, err := s.repo.RangeSummary(ctx, tenantID, from, to)
 	if err != nil {
 		return nil, err

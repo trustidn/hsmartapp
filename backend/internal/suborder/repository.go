@@ -166,6 +166,49 @@ func (r *Repository) SetPaymentProof(ctx context.Context, orderID, tenantID uuid
 	return err
 }
 
+func (r *Repository) Stats(ctx context.Context) (totalOrders int64, totalRevenue int64, err error) {
+	err = r.pool.QueryRow(ctx, `
+		SELECT COUNT(*)::bigint, COALESCE(SUM(amount_rupiah), 0)::bigint
+		FROM subscription_orders WHERE status = 'approved'
+	`).Scan(&totalOrders, &totalRevenue)
+	return totalOrders, totalRevenue, err
+}
+
+func (r *Repository) RevenueByMonth(ctx context.Context, months int) ([]struct{ Month string; Revenue int64 }, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT to_char(approved_at, 'YYYY-MM') as month, COALESCE(SUM(amount_rupiah), 0)::bigint
+		FROM subscription_orders
+		WHERE status = 'approved' AND approved_at IS NOT NULL
+		AND approved_at >= NOW() - ($1::text || ' months')::interval
+		GROUP BY to_char(approved_at, 'YYYY-MM')
+		ORDER BY month
+	`, months)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []struct{ Month string; Revenue int64 }
+	for rows.Next() {
+		var m string
+		var rev int64
+		if err := rows.Scan(&m, &rev); err != nil {
+			return nil, err
+		}
+		out = append(out, struct{ Month string; Revenue int64 }{m, rev})
+	}
+	return out, rows.Err()
+}
+
+func (r *Repository) MRR(ctx context.Context) (int64, error) {
+	var mrr int64
+	err := r.pool.QueryRow(ctx, `
+		SELECT COALESCE(SUM(amount_rupiah), 0)::bigint
+		FROM subscription_orders
+		WHERE status = 'approved' AND approved_at >= date_trunc('month', NOW())
+	`).Scan(&mrr)
+	return mrr, err
+}
+
 func nullIfEmpty(s string) interface{} {
 	if s == "" {
 		return nil

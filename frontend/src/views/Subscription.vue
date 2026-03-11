@@ -22,16 +22,16 @@
           class="p-4 bg-white rounded-2xl shadow-sm border border-gray-100"
         >
           <div class="flex flex-wrap items-center justify-between gap-3">
-            <div>
+            <div class="min-w-0 flex-1">
               <p class="font-semibold text-gray-800">{{ p.name }}</p>
-              <p class="text-sm text-gray-500">
-                {{ p.duration_days > 0 ? p.duration_days + ' hari' : 'Unlimited' }} ·
-                Rp {{ (p.price_rupiah || 0).toLocaleString('id-ID') }}
+              <p class="text-sm text-gray-500 mt-0.5">
+                Durasi {{ formatDuration(p.duration_days) }} · Max {{ formatLimit(p.max_products) }} produk · Laporan {{ formatReportDays(p.report_days) }}
               </p>
+              <p class="text-sm text-gray-600 mt-1">Rp {{ (p.price_rupiah || 0).toLocaleString('id-ID') }}</p>
             </div>
             <button
               @click="openOrder(p)"
-              class="px-4 py-2 rounded-xl bg-primary-600 text-white font-medium hover:bg-primary-700 text-sm"
+              class="shrink-0 px-4 py-2 rounded-xl bg-primary-600 text-white font-medium hover:bg-primary-700 text-sm"
             >
               Pilih
             </button>
@@ -151,6 +151,7 @@
 import { ref, onMounted } from 'vue'
 import { api } from '../lib/api'
 import { useToastStore } from '../stores/toast'
+import { useSubscriptionStore } from '../stores/subscription'
 
 const toast = useToastStore()
 const sub = ref(null)
@@ -181,12 +182,31 @@ function formatDate(s) {
     return s
   }
 }
+function formatDuration(days) {
+  if (days == null || days <= 0) return 'tanpa batas'
+  if (days >= 365) return '1 tahun'
+  if (days >= 180) return '6 bulan'
+  if (days >= 90) return '3 bulan'
+  if (days >= 30) return '1 bulan'
+  return `${days} hari`
+}
+function formatLimit(n) {
+  if (n == null || n < 0) return 'tak terbatas'
+  return n.toLocaleString('id-ID')
+}
+function formatReportDays(n) {
+  if (n == null || n < 0) return 'tak terbatas'
+  return `${n} hari`
+}
 
 const availablePlans = ref([])
 
 onMounted(async () => {
+  const subStore = useSubscriptionStore()
   try {
-    sub.value = await api.subscription.get()
+    const data = await api.subscription.get()
+    sub.value = data
+    subStore.data = data
   } catch {
     sub.value = null
   }
@@ -207,11 +227,11 @@ onMounted(async () => {
     availablePlans.value = active
   } catch {
     availablePlans.value = [
-      { plan_slug: 'premium_1m', name: 'Premium 1 Bulan', duration_days: 30, price_rupiah: 10000 },
-      { plan_slug: 'premium_3m', name: 'Premium 3 Bulan', duration_days: 90, price_rupiah: 25000 },
-      { plan_slug: 'premium_6m', name: 'Premium 6 Bulan', duration_days: 180, price_rupiah: 45000 },
-      { plan_slug: 'premium_1y', name: 'Premium 1 Tahun', duration_days: 365, price_rupiah: 80000 },
-      { plan_slug: 'platinum', name: 'Platinum', duration_days: 365, price_rupiah: 150000 },
+      { plan_slug: 'premium_1m', name: 'Premium 1 Bulan', duration_days: 30, max_products: -1, report_days: 30, price_rupiah: 10000 },
+      { plan_slug: 'premium_3m', name: 'Premium 3 Bulan', duration_days: 90, max_products: -1, report_days: 90, price_rupiah: 25000 },
+      { plan_slug: 'premium_6m', name: 'Premium 6 Bulan', duration_days: 180, max_products: -1, report_days: 180, price_rupiah: 45000 },
+      { plan_slug: 'premium_1y', name: 'Premium 1 Tahun', duration_days: 365, max_products: -1, report_days: 365, price_rupiah: 80000 },
+      { plan_slug: 'platinum', name: 'Platinum', duration_days: 365, max_products: -1, report_days: 365, price_rupiah: 150000 },
     ]
   }
   fetchOrders()

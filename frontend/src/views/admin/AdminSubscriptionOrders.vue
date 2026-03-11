@@ -3,7 +3,7 @@
     <h1 class="text-xl font-bold text-gray-800">Order Langganan</h1>
     <p class="text-gray-500 text-sm mt-1">Verifikasi dan setujui order upgrade/perpanjang dari tenant</p>
 
-    <div class="mt-4 flex gap-2">
+    <div class="mt-4 flex flex-wrap gap-2 items-center">
       <button
         @click="statusFilter = ''"
         :class="statusFilter === '' ? 'bg-primary-600 text-white' : 'bg-white border border-gray-200 text-gray-600'"
@@ -38,6 +38,12 @@
         class="px-3 py-2 rounded-xl font-medium text-sm"
       >
         Ditolak
+      </button>
+      <button
+        @click="exportCsv"
+        class="ml-auto px-4 py-2 rounded-xl bg-green-600 text-white font-medium text-sm hover:bg-green-700"
+      >
+        Ekspor Excel
       </button>
     </div>
 
@@ -241,6 +247,28 @@ async function confirmReject() {
   } finally {
     actionLoading.value = ''
   }
+}
+
+function exportCsv() {
+  const rows = [['Tenant', 'Plan', 'Amount (Rp)', 'Status', 'Catatan', 'Dibuat']]
+  for (const o of orders.value) {
+    rows.push([
+      o.tenant_name || '',
+      planLabel(o.plan_slug),
+      o.amount_rupiah ?? 0,
+      statusLabel(o.status),
+      o.payment_note || '',
+      formatDate(o.created_at),
+    ])
+  }
+  const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `order-langganan-${new Date().toISOString().slice(0, 10)}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
 }
 
 fetchOrders()

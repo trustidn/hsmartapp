@@ -155,3 +155,33 @@ func (r *Repository) UpdatePlan(ctx context.Context, id uuid.UUID, plan string) 
 	_, err := r.pool.Exec(ctx, `UPDATE tenants SET plan = $2 WHERE id = $1`, id, plan)
 	return err
 }
+
+func (r *Repository) CountActive(ctx context.Context) (int64, error) {
+	var n int64
+	err := r.pool.QueryRow(ctx, `SELECT COUNT(*) FROM tenants WHERE status = 'active'`).Scan(&n)
+	return n, err
+}
+
+func (r *Repository) CountByMonth(ctx context.Context, months int) ([]struct{ Month string; Count int64 }, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT to_char(created_at, 'YYYY-MM') as month, COUNT(*)::bigint
+		FROM tenants
+		WHERE created_at >= NOW() - ($1::text || ' months')::interval
+		GROUP BY to_char(created_at, 'YYYY-MM')
+		ORDER BY month
+	`, months)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []struct{ Month string; Count int64 }
+	for rows.Next() {
+		var m string
+		var c int64
+		if err := rows.Scan(&m, &c); err != nil {
+			return nil, err
+		}
+		out = append(out, struct{ Month string; Count int64 }{m, c})
+	}
+	return out, rows.Err()
+}

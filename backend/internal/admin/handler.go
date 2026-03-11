@@ -87,6 +87,41 @@ func (h *Handler) ListTenants(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (h *Handler) DashboardStats(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+		return
+	}
+	ctx := r.Context()
+	activeTenants, err := h.tenantRepo.CountActive(ctx)
+	if err != nil {
+		http.Error(w, `{"error":"failed to get stats"}`, http.StatusInternalServerError)
+		return
+	}
+	totalOrders, totalRevenue, err := h.suborderRepo.Stats(ctx)
+	if err != nil {
+		http.Error(w, `{"error":"failed to get stats"}`, http.StatusInternalServerError)
+		return
+	}
+	mrr, err := h.suborderRepo.MRR(ctx)
+	if err != nil {
+		mrr = 0
+	}
+	months := 6
+	tenantGrowth, _ := h.tenantRepo.CountByMonth(ctx, months)
+	revenueByMonth, _ := h.suborderRepo.RevenueByMonth(ctx, months)
+	resp := map[string]interface{}{
+		"active_tenants":    activeTenants,
+		"total_orders":      totalOrders,
+		"total_revenue":     totalRevenue,
+		"mrr":               mrr,
+		"tenant_growth":     tenantGrowth,
+		"revenue_by_month":  revenueByMonth,
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
+}
+
 func (h *Handler) GetTenant(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
@@ -197,15 +232,16 @@ func (h *Handler) UpdateTenantSubscription(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	var input struct {
-		ID   string `json:"id"`
-		Plan string `json:"plan"`
+		ID        string  `json:"id"`
+		Plan      string  `json:"plan"`
+		ExpiredAt *string `json:"expired_at"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		http.Error(w, `{"error":"invalid body"}`, http.StatusBadRequest)
 		return
 	}
-	if input.ID == "" || input.Plan == "" {
-		http.Error(w, `{"error":"id and plan required"}`, http.StatusBadRequest)
+	if input.ID == "" {
+		http.Error(w, `{"error":"id required"}`, http.StatusBadRequest)
 		return
 	}
 	id, err := uuid.Parse(input.ID)
@@ -213,13 +249,28 @@ func (h *Handler) UpdateTenantSubscription(w http.ResponseWriter, r *http.Reques
 		http.Error(w, `{"error":"invalid id"}`, http.StatusBadRequest)
 		return
 	}
+	if _, err := h.tenantRepo.GetByID(r.Context(), id); err != nil {
+		http.Error(w, `{"error":"tenant not found"}`, http.StatusNotFound)
+		return
+	}
+
+	if input.ExpiredAt != nil {
+		if err := h.subscriptionRepo.UpdateLatest(r.Context(), id, "", "", input.ExpiredAt); err != nil {
+			http.Error(w, `{"error":"gagal mengubah tanggal kadaluarsa"}`, http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"ok": "updated"})
+		return
+	}
+
+	if input.Plan == "" {
+		http.Error(w, `{"error":"plan required untuk menambah langganan"}`, http.StatusBadRequest)
+		return
+	}
 	validPlans := map[string]bool{"free": true, "premium": true, "premium_1m": true, "premium_3m": true, "premium_6m": true, "premium_1y": true, "platinum": true}
 	if !validPlans[input.Plan] {
 		http.Error(w, `{"error":"invalid plan"}`, http.StatusBadRequest)
-		return
-	}
-	if _, err := h.tenantRepo.GetByID(r.Context(), id); err != nil {
-		http.Error(w, `{"error":"tenant not found"}`, http.StatusNotFound)
 		return
 	}
 	cfg, err := h.planConfigRepo.GetByPlan(r.Context(), input.Plan)
@@ -233,6 +284,56 @@ func (h *Handler) UpdateTenantSubscription(w http.ResponseWriter, r *http.Reques
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"ok": "updated"})
+}
+
+func (h *Handler) RevokeTenantSubscription(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost && r.Method != http.MethodPatch && r.Method != http.MethodPut {
+		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+		return
+	}
+	var input struct {
+		ID string `json:"id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, `{"error":"invalid body"}`, http.StatusBadRequest)
+		return
+	}
+	if input.ID == "" {
+		http.Error(w, `{"error":"id required"}`, http.StatusBadRequest)
+		return
+	}
+	id, err := uuid.Parse(input.ID)
+	if err != nil {
+		http.Error(w, `{"error":"invalid id"}`, http.StatusBadRequest)
+		return
+	}
+	if _, err := h.tenantRepo.GetByID(r.Context(), id); err != nil {
+		http.Error(w, `{"error":"tenant not found"}`, http.StatusNotFound)
+		return
+	}
+	deleted, err := h.subscriptionRepo.DeleteLatestPaid(r.Context(), id)
+	if err != nil {
+		log.Printf("[admin] RevokeTenantSubscription DeleteLatestPaid error: %v", err)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "gagal mencabut langganan", "detail": err.Error()})
+		return
+	}
+	if !deleted {
+		http.Error(w, `{"error":"tidak ada langganan berbayar untuk dicabut"}`, http.StatusBadRequest)
+		return
+	}
+	cur, _ := h.subscriptionRepo.GetByTenant(r.Context(), id)
+	newPlan := "free"
+	if cur != nil && cur.Plan != "" {
+		newPlan = cur.Plan
+	}
+	if err := h.tenantRepo.UpdatePlan(r.Context(), id, newPlan); err != nil {
+		http.Error(w, `{"error":"gagal memperbarui plan"}`, http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"ok": "revoked"})
 }
 
 // addSubscriptionWithAccumulation inserts new subscription row; masa terakumulasi dengan langganan sebelumnya.

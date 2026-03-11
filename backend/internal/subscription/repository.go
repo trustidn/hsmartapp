@@ -27,9 +27,16 @@ type Subscription struct {
 func (r *Repository) GetByTenant(ctx context.Context, tenantID uuid.UUID) (*Subscription, error) {
 	var s Subscription
 	var expiredAt *string
+	// Ambil subscription yang belum kadaluarsa dengan expired_at terjauh, atau yang terakhir jika semua expired
 	err := r.pool.QueryRow(ctx, `
-		SELECT id, tenant_id, plan, status, started_at::text, expired_at::text
-		FROM subscriptions WHERE tenant_id = $1 ORDER BY started_at DESC LIMIT 1
+		SELECT id, tenant_id, plan, status, started_at::text,
+			CASE WHEN expired_at IS NOT NULL THEN to_char(expired_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') ELSE NULL END
+		FROM subscriptions WHERE tenant_id = $1
+		ORDER BY
+			CASE WHEN expired_at > NOW() THEN 0 WHEN expired_at IS NULL THEN 1 ELSE 2 END,
+			expired_at DESC NULLS LAST,
+			started_at DESC
+		LIMIT 1
 	`, tenantID).Scan(&s.ID, &s.TenantID, &s.Plan, &s.Status, &s.StartedAt, &expiredAt)
 	if err != nil {
 		return nil, err
@@ -41,8 +48,10 @@ func (r *Repository) GetByTenant(ctx context.Context, tenantID uuid.UUID) (*Subs
 // ListByTenant returns subscription history for a tenant, newest first.
 func (r *Repository) ListByTenant(ctx context.Context, tenantID uuid.UUID) ([]Subscription, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT id, tenant_id, plan, status, started_at::text, expired_at::text
-		FROM subscriptions WHERE tenant_id = $1 ORDER BY started_at DESC
+		SELECT id, tenant_id, plan, status, started_at::text,
+			CASE WHEN expired_at IS NOT NULL THEN to_char(expired_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') ELSE NULL END
+		FROM subscriptions WHERE tenant_id = $1
+		ORDER BY started_at DESC
 	`, tenantID)
 	if err != nil {
 		return nil, err
@@ -81,6 +90,20 @@ func (r *Repository) Create(ctx context.Context, tenantID uuid.UUID, plan, statu
 // expiredAt: nil = don't change, non-nil = set (use empty string to clear/set NULL).
 // Valid plans for subscription
 var ValidPlans = map[string]bool{"free": true, "premium": true, "premium_1m": true, "premium_3m": true, "premium_6m": true, "premium_1y": true, "platinum": true}
+
+// DeleteLatestPaid menghapus langganan berbayar yang terakhir ditambahkan (by started_at).
+// Tidak menghapus row plan free (subscription awal).
+func (r *Repository) DeleteLatestPaid(ctx context.Context, tenantID uuid.UUID) (deleted bool, err error) {
+	res, err := r.pool.Exec(ctx, `
+		DELETE FROM subscriptions
+		WHERE tenant_id = $1 AND plan != 'free'
+		AND id = (SELECT id FROM subscriptions WHERE tenant_id = $1 AND plan != 'free' ORDER BY started_at DESC LIMIT 1)
+	`, tenantID)
+	if err != nil {
+		return false, err
+	}
+	return res.RowsAffected() > 0, nil
+}
 
 func (r *Repository) UpdateLatest(ctx context.Context, tenantID uuid.UUID, plan, status string, expiredAt *string) error {
 	var err error

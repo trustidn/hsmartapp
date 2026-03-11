@@ -3,9 +3,11 @@ package product
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/hsmart/app/backend/internal/planconfig"
+	"github.com/hsmart/app/backend/internal/subscription"
 	"github.com/hsmart/app/backend/internal/tenant"
 )
 
@@ -15,10 +17,35 @@ type Service struct {
 	repo         *Repository
 	tenantRepo   *tenant.Repository
 	planConfig   *planconfig.Repository
+	subscription *subscription.Repository
 }
 
-func NewService(repo *Repository, tenantRepo *tenant.Repository, planConfig *planconfig.Repository) *Service {
-	return &Service{repo: repo, tenantRepo: tenantRepo, planConfig: planConfig}
+func NewService(repo *Repository, tenantRepo *tenant.Repository, planConfig *planconfig.Repository, subRepo *subscription.Repository) *Service {
+	return &Service{repo: repo, tenantRepo: tenantRepo, planConfig: planConfig, subscription: subRepo}
+}
+
+func (s *Service) effectivePlan(ctx context.Context, tenantID uuid.UUID) string {
+	sub, err := s.subscription.GetByTenant(ctx, tenantID)
+	if err != nil {
+		t, _ := s.tenantRepo.GetByID(ctx, tenantID)
+		if t != nil {
+			return t.Plan
+		}
+		return "free"
+	}
+	if sub.ExpiredAt != nil && *sub.ExpiredAt != "" {
+		var t time.Time
+		for _, layout := range []string{time.RFC3339, "2006-01-02", "2006-01-02 15:04:05-07"} {
+			if parsed, err := time.Parse(layout, *sub.ExpiredAt); err == nil {
+				t = parsed
+				break
+			}
+		}
+		if !t.IsZero() && t.Before(time.Now()) {
+			return "free" // expired -> limit pakai plan free
+		}
+	}
+	return sub.Plan
 }
 
 func (s *Service) List(ctx context.Context, tenantID uuid.UUID, activeOnly bool) ([]Product, error) {
@@ -35,11 +62,8 @@ func (s *Service) Create(ctx context.Context, tenantID uuid.UUID, input CreateIn
 	if input.Name == "" || input.Price < 0 {
 		return nil, errors.New("name required and price >= 0")
 	}
-	t, err := s.tenantRepo.GetByID(ctx, tenantID)
-	if err != nil {
-		return nil, err
-	}
-	maxProducts := s.planConfig.GetMaxProducts(ctx, t.Plan)
+	plan := s.effectivePlan(ctx, tenantID)
+	maxProducts := s.planConfig.GetMaxProducts(ctx, plan)
 	count, err := s.repo.CountByTenant(ctx, tenantID)
 	if err != nil {
 		return nil, err

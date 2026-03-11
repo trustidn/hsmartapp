@@ -3,7 +3,7 @@
     <h1 class="text-xl font-bold text-gray-800">Daftar Tenant</h1>
     <p class="text-gray-500 text-sm mt-1">Kelola merchant / UMKM terdaftar</p>
 
-    <div class="mt-6 flex flex-wrap gap-3">
+    <div class="mt-6 flex flex-wrap gap-3 items-center">
       <input
         v-model="search"
         type="search"
@@ -16,6 +16,12 @@
         class="px-4 py-2 rounded-xl bg-primary-600 text-white font-medium hover:bg-primary-700"
       >
         Cari
+      </button>
+      <button
+        @click="exportCsv"
+        class="px-4 py-2 rounded-xl bg-green-600 text-white font-medium hover:bg-green-700"
+      >
+        Ekspor Excel
       </button>
     </div>
 
@@ -202,6 +208,29 @@ function debouncedFetch() {
 function goPage(delta) {
   offset.value = Math.max(0, offset.value + delta * limit.value)
   fetchTenants()
+}
+
+function exportCsv() {
+  const rows = [['Nama', 'HP', 'Plan', 'Status', 'Transaksi', 'Transaksi Terakhir', 'Daftar']]
+  for (const t of tenants.value) {
+    rows.push([
+      t.name || '',
+      t.phone || '',
+      planLabel(t.plan),
+      t.status || '',
+      t.transactions ?? 0,
+      formatDate(t.last_transaction_at),
+      formatDate(t.created_at),
+    ])
+  }
+  const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `tenant-${new Date().toISOString().slice(0, 10)}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
 }
 
 onMounted(fetchTenants)

@@ -1,9 +1,41 @@
 <template>
   <div class="min-h-full">
+      <!-- Banner limit / expired (hanya setelah data subscription ter-load) -->
+      <div v-if="!planLimits.loading && (planLimits.productLimitMessage || planLimits.isExpired)" class="mb-4 space-y-2">
+        <div
+          v-if="planLimits.isExpired"
+          class="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between gap-3"
+        >
+          <p class="text-amber-800 text-sm">Langganan Anda telah kadaluarsa. Beberapa fitur dibatasi.</p>
+          <router-link to="/subscription" class="shrink-0 px-4 py-2 rounded-xl bg-amber-600 text-white text-sm font-medium">
+            Perpanjang
+          </router-link>
+        </div>
+        <div
+          v-else-if="planLimits.productLimitMessage"
+          :class="[
+            planLimits.productLimitReached ? 'bg-amber-50 border-amber-200' : 'bg-blue-50 border-blue-200',
+            'border rounded-xl p-4 flex items-center justify-between gap-3',
+          ]"
+        >
+          <p class="text-sm" :class="planLimits.productLimitReached ? 'text-amber-800' : 'text-blue-800'">
+            {{ planLimits.productLimitMessage }}
+          </p>
+          <router-link
+            v-if="planLimits.productLimitReached"
+            to="/subscription"
+            class="shrink-0 px-4 py-2 rounded-xl bg-primary-600 text-white text-sm font-medium"
+          >
+            Upgrade
+          </router-link>
+        </div>
+      </div>
+
       <div class="flex justify-end mb-4">
         <button
           type="button"
-          class="min-h-touch px-4 rounded-xl bg-primary-600 text-white font-semibold"
+          class="min-h-touch px-4 rounded-xl bg-primary-600 text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+          :disabled="!planLimits.canAddProduct"
           @click="showForm = true; editProduct = null"
         >
           + Tambah Produk
@@ -66,8 +98,27 @@
         </div>
       </div>
 
-      <!-- Empty -->
-      <p v-else class="text-gray-400 text-center py-8">Belum ada produk. Klik &quot;+ Tambah Produk&quot; untuk menambah.</p>
+      <!-- Empty: sample produk untuk tenant baru -->
+      <div v-else class="text-center py-8">
+        <p class="text-gray-600 mb-4">Belum ada produk. Mulai dengan menambah produk manual atau gunakan sample untuk mencoba.</p>
+        <div class="flex flex-wrap gap-3 justify-center">
+          <button
+            type="button"
+            class="px-5 py-2.5 rounded-xl bg-primary-600 text-white font-medium hover:bg-primary-700"
+            @click="showForm = true; editProduct = null"
+          >
+            + Tambah Produk
+          </button>
+          <button
+            type="button"
+            class="px-5 py-2.5 rounded-xl border border-primary-600 text-primary-600 font-medium hover:bg-primary-50 disabled:opacity-50"
+            :disabled="addingSamples"
+            @click="addSampleProducts"
+          >
+            {{ addingSamples ? '...' : 'Tambah Sample Produk' }}
+          </button>
+        </div>
+      </div>
 
       <!-- Modal form -->
       <div
@@ -120,17 +171,26 @@ import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { useProductsStore } from '../stores/products'
 import { useToastStore } from '../stores/toast'
+import { usePlanLimits } from '../composables/usePlanLimits'
 import { api } from '../lib/api'
 
 const auth = useAuthStore()
 const toast = useToastStore()
 const products = useProductsStore()
+const planLimits = usePlanLimits(auth, products)
 const productList = computed(() => (products.items ?? []))
 const showForm = ref(false)
 const editProduct = ref(null)
 const saving = ref(false)
+const addingSamples = ref(false)
 const form = ref({ name: '', price: 0 })
 const loadError = ref('')
+
+const SAMPLE_PRODUCTS = [
+  { name: 'Sample Produk 1', price: 5000 },
+  { name: 'Sample Produk 2', price: 10000 },
+  { name: 'Sample Produk 3', price: 15000 },
+]
 
 async function loadProducts() {
   loadError.value = ''
@@ -149,7 +209,10 @@ function retryLoad() {
   loadProducts()
 }
 
-onMounted(loadProducts)
+onMounted(async () => {
+  await planLimits.load()
+  await loadProducts()
+})
 
 function startEdit(p) {
   editProduct.value = p
@@ -173,7 +236,11 @@ async function saveProduct() {
     editProduct.value = null
     form.value = { name: '', price: 0 }
   } catch (e) {
-    toast.error(e.message || 'Gagal menyimpan produk')
+    const msg = e.message || 'Gagal menyimpan produk'
+    toast.error(msg)
+    if (msg.toLowerCase().includes('batas') || msg.toLowerCase().includes('limit')) {
+      planLimits.load()
+    }
   } finally {
     saving.value = false
   }
@@ -187,6 +254,23 @@ async function removeProduct(p) {
     toast.success('Produk berhasil dihapus')
   } catch (e) {
     toast.error(e.message || 'Gagal menghapus produk.')
+  }
+}
+
+async function addSampleProducts() {
+  if (!auth.tenantId) return
+  addingSamples.value = true
+  try {
+    for (const sp of SAMPLE_PRODUCTS) {
+      await products.create(auth.tenantId, { name: sp.name, price: sp.price })
+    }
+    await loadProducts()
+    toast.success('Sample produk berhasil ditambahkan')
+    planLimits.load()
+  } catch (e) {
+    toast.error(e.message || 'Gagal menambah sample produk')
+  } finally {
+    addingSamples.value = false
   }
 }
 

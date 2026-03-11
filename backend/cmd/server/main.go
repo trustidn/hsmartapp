@@ -65,8 +65,12 @@ func run(ctx context.Context) error {
 
 	// Protected modules (tenant + auth)
 	planConfigRepo := planconfig.NewRepository(pool)
+	subRepo := subscription.NewRepository(pool)
+	subSvc := subscription.NewService(subRepo)
+	subHandler := subscription.NewHandler(subSvc)
+
 	productRepo := product.NewRepository(pool)
-	productSvc := product.NewService(productRepo, tenantRepo, planConfigRepo)
+	productSvc := product.NewService(productRepo, tenantRepo, planConfigRepo, subRepo)
 	productHandler := product.NewHandler(productSvc)
 
 	salesRepo := sales.NewRepository(pool)
@@ -78,12 +82,8 @@ func run(ctx context.Context) error {
 	expenseHandler := expense.NewHandler(expenseSvc)
 
 	reportRepo := report.NewRepository(pool)
-	reportSvc := report.NewService(reportRepo, redisCache)
+	reportSvc := report.NewService(reportRepo, redisCache, subRepo, planConfigRepo)
 	reportHandler := report.NewHandler(reportSvc)
-
-	subRepo := subscription.NewRepository(pool)
-	subSvc := subscription.NewService(subRepo)
-	subHandler := subscription.NewHandler(subSvc)
 
 	suborderRepo := suborder.NewRepository(pool)
 	suborderSvc := suborder.NewService(suborderRepo)
@@ -108,10 +108,12 @@ func run(ctx context.Context) error {
 
 	mux.HandleFunc("POST /api/admin/auth/login", adminAuthHandler.Login)
 	mux.Handle("GET /api/admin/me", adminGuard(http.HandlerFunc(adminAuthHandler.Me)))
+	mux.Handle("GET /api/admin/dashboard/stats", adminGuard(http.HandlerFunc(adminHandler.DashboardStats)))
 	mux.Handle("GET /api/admin/tenants", adminGuard(http.HandlerFunc(adminHandler.ListTenants)))
 	mux.Handle("GET /api/admin/tenants/get", adminGuard(http.HandlerFunc(adminHandler.GetTenant)))
 	mux.Handle("PATCH /api/admin/tenants/status", adminGuard(http.HandlerFunc(adminHandler.UpdateTenantStatus)))
 	mux.Handle("PATCH /api/admin/tenants/subscription", adminGuard(http.HandlerFunc(adminHandler.UpdateTenantSubscription)))
+	mux.Handle("POST /api/admin/tenants/subscription/revoke", adminGuard(http.HandlerFunc(adminHandler.RevokeTenantSubscription)))
 	mux.Handle("GET /api/admin/plans", adminGuard(http.HandlerFunc(adminHandler.ListPlanConfig)))
 	mux.Handle("PATCH /api/admin/plans", adminGuard(http.HandlerFunc(adminHandler.UpdatePlanConfig)))
 	mux.Handle("DELETE /api/admin/plans", adminGuard(http.HandlerFunc(adminHandler.DeletePlan)))

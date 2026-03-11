@@ -26,13 +26,17 @@ async function adminRequest(method, path, body) {
     } catch {
       err = { error: t || res.statusText }
     }
-    throw new Error(err.error || 'Request failed')
+    const msg = err.detail ? `${err.error || 'Request failed'}: ${err.detail}` : (err.error || 'Request failed')
+    throw new Error(msg)
   }
   if (res.status === 204) return null
   return res.json()
 }
 
 export const adminApi = {
+  dashboard: {
+    stats: () => adminRequest('GET', '/admin/dashboard/stats'),
+  },
   tenants: {
     list: (params = {}) => {
       const p = new URLSearchParams()
@@ -46,6 +50,8 @@ export const adminApi = {
     updateStatus: (id, status) => adminRequest('PATCH', '/admin/tenants/status', { id, status }),
     updateSubscription: (id, data) =>
       adminRequest('PATCH', '/admin/tenants/subscription', { id, ...(data || {}) }),
+    revokeSubscription: (id) =>
+      adminRequest('POST', '/admin/tenants/subscription/revoke', { id }),
   },
   saasSettings: {
     get: () => adminRequest('GET', '/admin/saas-settings'),

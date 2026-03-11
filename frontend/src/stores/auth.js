@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { api } from '../lib/api'
+import { useSubscriptionStore } from './subscription'
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
@@ -50,6 +51,7 @@ export const useAuthStore = defineStore('auth', {
       localStorage.removeItem('userId')
       localStorage.removeItem('name')
       localStorage.removeItem('role')
+      useSubscriptionStore().$patch({ data: null })
     },
   },
 })

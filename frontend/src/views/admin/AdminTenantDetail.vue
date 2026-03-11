@@ -71,6 +71,37 @@
             </div>
           </dl>
 
+          <!-- Ubah tanggal kadaluarsa -->
+          <div v-if="tenant.subscription" class="mb-4">
+            <label class="block text-sm text-gray-600 mb-2">Ubah Tanggal Kadaluarsa</label>
+            <div class="flex gap-2">
+              <input
+                v-model="expiryForm.date"
+                type="date"
+                class="flex-1 px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-primary-400"
+              />
+              <button
+                @click="updateExpiry"
+                :disabled="expiryLoading"
+                class="px-4 py-2 rounded-xl bg-amber-600 text-white font-medium hover:bg-amber-700 disabled:opacity-50"
+              >
+                {{ expiryLoading ? '...' : 'Simpan' }}
+              </button>
+            </div>
+          </div>
+
+          <!-- Cabut langganan berbayar -->
+          <div v-if="tenant.plan && tenant.plan !== 'free'" class="mb-4">
+            <button
+              @click="revokeSubscription"
+              :disabled="revokeLoading"
+              class="w-full px-4 py-2 rounded-xl bg-red-600 text-white font-medium hover:bg-red-700 disabled:opacity-50"
+            >
+              {{ revokeLoading ? '...' : 'Cabut Langganan' }}
+            </button>
+            <p class="text-xs text-gray-500 mt-1">Hapus langganan berbayar terakhir. Akumulasi masa aktif akan dihitung ulang.</p>
+          </div>
+
           <!-- Upgrade / Perpanjang: tambah langganan (masa terakumulasi) -->
           <div>
             <label class="block text-sm text-gray-600 mb-2">Upgrade / Perpanjang Langganan</label>
@@ -161,7 +192,10 @@ const loading = ref(true)
 const error = ref('')
 const statusLoading = ref(false)
 const subLoading = ref(false)
+const revokeLoading = ref(false)
+const expiryLoading = ref(false)
 const subForm = ref({ plan: 'free' })
+const expiryForm = ref({ date: '' })
 
 const id = computed(() => route.params.id)
 const planOptions = ref([])
@@ -203,6 +237,12 @@ function formatDate(s) {
   }
 }
 
+function toDateInput(s) {
+  if (!s) return ''
+  const d = new Date(s)
+  return d.toISOString().slice(0, 10)
+}
+
 async function fetchTenant() {
   if (!id.value) return
   loading.value = true
@@ -211,6 +251,7 @@ async function fetchTenant() {
     tenant.value = await adminApi.tenants.get(id.value)
     if (tenant.value) {
       subForm.value.plan = subForm.value.plan || tenant.value.plan || tenant.value.subscription?.plan || 'premium_1m'
+      expiryForm.value.date = toDateInput(tenant.value.subscription?.expired_at)
     }
   } catch (e) {
     error.value = e.message || 'Gagal memuat tenant'
@@ -242,6 +283,37 @@ async function addSubscription() {
     toast(e.message || 'Gagal menambah langganan', 'error')
   } finally {
     subLoading.value = false
+  }
+}
+
+async function revokeSubscription() {
+  if (!confirm('Yakin mencabut langganan berbayar terakhir? Akumulasi masa aktif akan dihitung ulang.')) return
+  revokeLoading.value = true
+  try {
+    await adminApi.tenants.revokeSubscription(id.value)
+    await fetchTenant()
+    toast('Langganan berhasil dicabut')
+  } catch (e) {
+    toast(e.message || 'Gagal mencabut langganan', 'error')
+  } finally {
+    revokeLoading.value = false
+  }
+}
+
+async function updateExpiry() {
+  if (!expiryForm.value.date) {
+    toast('Pilih tanggal kadaluarsa', 'error')
+    return
+  }
+  expiryLoading.value = true
+  try {
+    await adminApi.tenants.updateSubscription(id.value, { expired_at: expiryForm.value.date })
+    await fetchTenant()
+    toast('Tanggal kadaluarsa berhasil diubah')
+  } catch (e) {
+    toast(e.message || 'Gagal mengubah tanggal kadaluarsa', 'error')
+  } finally {
+    expiryLoading.value = false
   }
 }
 </script>
