@@ -104,3 +104,49 @@ func (r *Repository) ExistsByPhone(ctx context.Context, phone string) (bool, err
 	}
 	return true, nil
 }
+
+// ListResult for admin pagination
+type ListResult struct {
+	Tenants []Tenant
+	Total   int64
+}
+
+func (r *Repository) List(ctx context.Context, limit, offset int, search string) (*ListResult, error) {
+	searchCond := "1=1"
+	args := []interface{}{limit, offset}
+	if search != "" {
+		searchCond = "(name ILIKE $3 OR phone ILIKE $3)"
+		args = append(args, "%"+search+"%")
+	}
+	query := `SELECT id, name, phone, plan, status, created_at::text
+		FROM tenants WHERE ` + searchCond + ` ORDER BY created_at DESC LIMIT $1 OFFSET $2`
+	rows, err := r.pool.Query(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var tenants []Tenant
+	for rows.Next() {
+		var t Tenant
+		err := rows.Scan(&t.ID, &t.Name, &t.Phone, &t.Plan, &t.Status, &t.CreatedAt)
+		if err != nil {
+			return nil, err
+		}
+		tenants = append(tenants, t)
+	}
+	var total int64
+	if search != "" {
+		err = r.pool.QueryRow(ctx, `SELECT COUNT(*) FROM tenants WHERE (name ILIKE $1 OR phone ILIKE $1)`, "%"+search+"%").Scan(&total)
+	} else {
+		err = r.pool.QueryRow(ctx, `SELECT COUNT(*) FROM tenants`).Scan(&total)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &ListResult{Tenants: tenants, Total: total}, nil
+}
+
+func (r *Repository) UpdateStatus(ctx context.Context, id uuid.UUID, status string) error {
+	_, err := r.pool.Exec(ctx, `UPDATE tenants SET status = $2 WHERE id = $1`, id, status)
+	return err
+}

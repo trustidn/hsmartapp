@@ -1,6 +1,8 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useAdminAuthStore } from '../stores/adminAuth'
 import TenantLayout from '../layouts/TenantLayout.vue'
+import AdminLayout from '../layouts/AdminLayout.vue'
 import POS from '../views/POS.vue'
 import Dashboard from '../views/Dashboard.vue'
 import Products from '../views/Products.vue'
@@ -12,6 +14,17 @@ import More from '../views/More.vue'
 const routes = [
   { path: '/login', name: 'Login', component: () => import('../views/Login.vue'), meta: { guest: true } },
   { path: '/register', name: 'Register', component: () => import('../views/Register.vue'), meta: { guest: true } },
+  { path: '/admin/login', name: 'AdminLogin', component: () => import('../views/admin/AdminLogin.vue'), meta: { adminGuest: true } },
+  {
+    path: '/admin',
+    component: AdminLayout,
+    meta: { requiresAdmin: true },
+    children: [
+      { path: '', name: 'AdminDashboard', component: () => import('../views/admin/AdminDashboard.vue'), meta: { title: 'Admin' } },
+      { path: 'tenants', name: 'AdminTenants', component: () => import('../views/admin/AdminTenants.vue'), meta: { title: 'Tenants' } },
+      { path: 'tenants/:id', name: 'AdminTenantDetail', component: () => import('../views/admin/AdminTenantDetail.vue'), meta: { title: 'Detail Tenant' } },
+    ],
+  },
   {
     path: '/',
     component: TenantLayout,
@@ -35,6 +48,9 @@ const router = createRouter({
 
 router.beforeEach(async (to) => {
   const auth = useAuthStore()
+  const adminAuth = useAdminAuthStore()
+  if (to.meta.requiresAdmin && !adminAuth.isAdminLoggedIn) return { name: 'AdminLogin' }
+  if (to.meta.adminGuest && adminAuth.isAdminLoggedIn) return { name: 'AdminDashboard' }
   if (to.meta.requiresAuth && !auth.isLoggedIn) return { name: 'Login' }
   if (to.meta.guest && auth.isLoggedIn) return { name: 'Dashboard' }
   return true

@@ -67,6 +67,21 @@ App: **http://localhost:5173** — request `/api` di-proxy ke backend.
 
 Buka http://localhost:5173 → Daftar (HP + password) → Login → Tambah Produk → POS → tap produk → BAYAR.
 
+### 5. Admin Superadmin (opsional)
+
+```bash
+# Jalankan migration superadmins
+psql -d hsmart -f backend/migrations/004_superadmins.up.sql
+
+# Seed superadmin pertama (default: admin@hsmart.app / admin123)
+cd backend && go run ./cmd/seed-admin
+
+# Custom email/password:
+ADMIN_EMAIL=admin@example.com ADMIN_PASSWORD=secret go run ./cmd/seed-admin
+```
+
+Buka http://localhost:5173/admin/login → Login dengan email & password superadmin.
+
 ## Project Structure
 
 ```
@@ -84,13 +99,18 @@ frontend/
 
 ## API Overview
 
-- **Public:** `POST /api/auth/login`, `POST /api/register`
+- **Public:** `POST /api/auth/login`, `POST /api/register`, `POST /api/admin/auth/login` (superadmin)
 - **Protected (Header: `Authorization: Bearer <token>`, `X-Tenant-ID: <uuid>`):**
   - Products: `GET/POST/PUT/DELETE /api/products`
   - Sales: `POST /api/sales`, `GET /api/sales`, `GET /api/sales/get?id=`
   - Expenses: `POST /api/expenses`, `GET /api/expenses`
   - Report: `GET /api/report/daily`, `GET /api/report/ranking`, `GET /api/report/dashboard`
   - Subscription: `GET /api/subscription`
+- **Admin (Header: `Authorization: Bearer <admin_token>` — tidak pakai X-Tenant-ID):**
+  - `GET /api/admin/me` — verifikasi token superadmin
+  - `GET /api/admin/tenants?limit=&offset=&search=` — daftar tenant (paginated, search by nama/HP)
+  - `GET /api/admin/tenants/get?id=` — detail tenant + subscription
+  - `PATCH /api/admin/tenants/status` — ubah status tenant (body: `{id, status}` — status: active, suspended, inactive)
 
 ## PWA & Offline
 

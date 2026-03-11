@@ -6,6 +6,9 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/hsmart/app/backend/internal/admin"
+	"github.com/hsmart/app/backend/internal/adminauth"
+	"github.com/joho/godotenv"
 	"github.com/hsmart/app/backend/internal/auth"
 	"github.com/hsmart/app/backend/internal/expense"
 	"github.com/hsmart/app/backend/internal/product"
@@ -19,6 +22,7 @@ import (
 )
 
 func main() {
+	_ = godotenv.Load() // load .env from current dir (ignore error if missing)
 	ctx := context.Background()
 	if err := run(ctx); err != nil {
 		log.Fatal(err)
@@ -75,6 +79,19 @@ func run(ctx context.Context) error {
 	subHandler := subscription.NewHandler(subSvc)
 
 	mux := http.NewServeMux()
+
+	// Admin auth (superadmin, no tenant)
+	adminAuthRepo := adminauth.NewRepository(pool)
+	adminAuthSvc := adminauth.NewService(adminAuthRepo, []byte(jwtSecret))
+	adminAuthHandler := adminauth.NewHandler(adminAuthSvc)
+	adminGuard := middleware.AdminGuard([]byte(jwtSecret))
+	adminHandler := admin.NewHandler(tenantRepo, subRepo)
+
+	mux.HandleFunc("POST /api/admin/auth/login", adminAuthHandler.Login)
+	mux.Handle("GET /api/admin/me", adminGuard(http.HandlerFunc(adminAuthHandler.Me)))
+	mux.Handle("GET /api/admin/tenants", adminGuard(http.HandlerFunc(adminHandler.ListTenants)))
+	mux.Handle("GET /api/admin/tenants/get", adminGuard(http.HandlerFunc(adminHandler.GetTenant)))
+	mux.Handle("PATCH /api/admin/tenants/status", adminGuard(http.HandlerFunc(adminHandler.UpdateTenantStatus)))
 
 	// Public
 	mux.HandleFunc("POST /api/auth/login", authHandler.Login)
