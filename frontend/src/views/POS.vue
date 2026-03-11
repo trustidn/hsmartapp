@@ -43,15 +43,15 @@
     </div>
 
     <!-- Cart + Payment: lebar sama dengan bottom nav, jarak dari bottom nav -->
-    <aside class="cart-sticky">
+    <aside class="cart-sticky" :class="{ 'cart-expanded': cartExpanded }">
       <!-- Collapse/Expand toggle -->
       <button
         type="button"
-        class="w-full flex items-center justify-center gap-1.5 py-2 text-gray-500 hover:text-gray-700 transition-colors"
+        class="w-full flex items-center justify-center gap-2 py-3 text-gray-600 hover:text-gray-800 hover:bg-gray-50 transition-colors touch-manipulation"
         @click="cartExpanded = !cartExpanded"
       >
         <svg
-          class="w-4 h-4 transition-transform"
+          class="w-5 h-5 transition-transform"
           :class="{ 'rotate-180': cartExpanded }"
           fill="none"
           stroke="currentColor"
@@ -59,13 +59,13 @@
         >
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
         </svg>
-        <span class="text-xs font-medium">{{ cartExpanded ? 'Sembunyikan' : 'Tampilkan' }}</span>
+        <span class="text-sm font-semibold">{{ cartExpanded ? 'Sembunyikan' : 'Tampilkan daftar belanjaan' }}</span>
       </button>
 
-      <!-- Cart list (expandable) - minimalis modern -->
+      <!-- Cart list (expandable) - minimal 50% layar saat maximize -->
       <Transition name="cart-toggle">
         <div v-show="cartExpanded" class="cart-content">
-          <div class="px-3 py-2 max-h-32 overflow-y-auto">
+          <div class="cart-list-scroll px-3 py-2 min-h-[50vh] max-h-[50vh] overflow-y-auto">
             <div v-if="pos.cart.length === 0" class="flex flex-col items-center justify-center py-6 text-gray-400">
               <svg class="w-10 h-10 mb-1 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z" />
@@ -76,18 +76,18 @@
               <li
                 v-for="i in pos.cart"
                 :key="i.productId"
-                class="flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-gray-50/80 group"
+                class="flex items-center justify-between py-2 px-2 rounded-lg hover:bg-gray-50/80"
               >
                 <span class="text-sm text-gray-800 truncate flex-1">{{ i.name }} <span class="text-gray-400 font-normal">×{{ i.qty }}</span></span>
-                <div class="flex items-center gap-1">
+                <div class="flex items-center gap-2 shrink-0">
                   <span class="text-sm font-medium text-gray-900 tabular-nums">Rp {{ formatNum(i.subtotal) }}</span>
                   <button
                     type="button"
-                    class="p-1 rounded-md text-gray-400 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
+                    class="p-2 rounded-lg text-red-600 bg-red-50 hover:bg-red-100 hover:text-red-700 border border-red-200/80 transition-colors touch-manipulation min-w-[2.5rem] min-h-[2.5rem] flex items-center justify-center"
                     @click.stop="pos.removeItem(i.productId)"
                     aria-label="Hapus"
                   >
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                   </button>
                 </div>
               </li>
@@ -372,22 +372,22 @@ function buildReceiptHtml(sale, s) {
   totHtml += '<div class="row"><span>Metode</span><span>' + escapeHtml(paymentLabel(sale.payment_method)) + '</span></div>'
   const footer = s?.receipt_footer ? '<div class="footer">' + escapeHtml(s.receipt_footer) + '</div>' : ''
   return (
-    '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Struk</title>' +
+    '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=80mm"><title>Struk</title>' +
     '<style>' +
-    '@page{size:80mm auto;margin:5mm}' +
-    'body{margin:0;padding:10mm;font-family:"Courier New",Courier,monospace;font-size:12px;line-height:1.5;color:#000;width:72mm;box-sizing:border-box}' +
+    '@page{size:80mm auto;margin:4mm}' +
+    'body{margin:0;padding:0;font-family:"Courier New",Courier,monospace;font-size:14px;line-height:1.5;color:#000;box-sizing:border-box;width:72mm;min-width:72mm;max-width:72mm}' +
     '*{box-sizing:border-box}' +
-    '.receipt{width:100%}' +
-    '.store{font-weight:bold;text-align:center;font-size:14px;margin-bottom:2px}' +
-    '.date{text-align:center;color:#555;margin-bottom:6px;font-size:11px}' +
-    '.sep{border-top:1px dashed #999;margin:8px 0;line-height:0}' +
-    '.row{display:flex;justify-content:space-between;align-items:flex-start;gap:6px;margin:3px 0;min-height:1.2em}' +
+    '.receipt{width:100%;padding:2mm 0}' +
+    '.store{font-weight:bold;text-align:center;font-size:18px;margin-bottom:4px;line-height:1.3}' +
+    '.date{text-align:center;color:#555;margin-bottom:8px;font-size:13px}' +
+    '.sep{border-top:1px dashed #999;margin:10px 0;line-height:0}' +
+    '.row{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin:4px 0;min-height:1.4em;font-size:14px}' +
     '.row .item,.row span:first-child{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}' +
     '.row .amt,.row span:last-child{flex-shrink:0;text-align:right;white-space:nowrap}' +
-    '.row.total{font-weight:bold;margin-top:6px;font-size:13px}' +
-    '.row.change{font-weight:bold;color:#15803d;font-size:12px}' +
-    '.footer{text-align:center;font-size:10px;color:#666;margin-top:10px;line-height:1.4;white-space:pre-wrap}' +
-    '@media print{body{margin:0;padding:8mm;width:72mm;-webkit-print-color-adjust:exact;print-color-adjust:exact}@page{margin:6mm}}' +
+    '.row.total{font-weight:bold;margin-top:8px;font-size:16px}' +
+    '.row.change{font-weight:bold;color:#15803d;font-size:14px}' +
+    '.footer{text-align:center;font-size:12px;color:#666;margin-top:12px;line-height:1.4;white-space:pre-wrap}' +
+    '@media print{html,body{margin:0;padding:0;width:80mm!important;min-width:80mm;max-width:80mm;-webkit-print-color-adjust:exact;print-color-adjust:exact}.receipt{width:100%}@page{size:80mm auto;margin:4mm}}' +
     '</style></head><body>' +
     '<div class="receipt">' +
     '<div class="store">' + escapeHtml(name) + '</div>' +
@@ -397,8 +397,7 @@ function buildReceiptHtml(sale, s) {
     '<div class="sep"></div>' +
     totHtml +
     footer +
-    '</div>' +
-    '<script>window.onload=function(){window.print();setTimeout(window.close,100);}<\/script></body></html>'
+    '</div></body></html>'
   )
 }
 function escapeHtml(str) {
@@ -410,28 +409,48 @@ function doPrint() {
   const s = settings.value
   const html = buildReceiptHtml(paidReceipt.value, s)
 
-  const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const printWin = window.open(url, '_blank', 'width=320,height=480')
+  // Metode 1: Buka di tab/window baru (lebih andal untuk print)
+  const printWin = window.open('', '_blank', 'noopener,noreferrer,width=320,height=500')
   if (printWin) {
-    setTimeout(() => URL.revokeObjectURL(url), 5000)
+    printWin.document.write(html)
+    printWin.document.close()
+    printWin.focus()
+    // Delay agar konten selesai di-render sebelum print dialog muncul
+    setTimeout(() => {
+      try {
+        printWin.print()
+        printWin.onafterprint = () => printWin.close()
+      } catch (e) {
+        alert('Gagal membuka dialog cetak. Periksa pengaturan printer.')
+        printWin.close()
+      }
+    }, 600)
   } else {
-    URL.revokeObjectURL(url)
-    // Fallback: iframe cetak
+    // Fallback: iframe (saat pop-up diblokir)
     const iframe = document.createElement('iframe')
-    iframe.style.cssText = 'position:fixed;width:80mm;min-height:200px;left:-9999px;top:0;border:none;'
+    iframe.name = 'print-frame'
+    iframe.style.cssText = 'position:fixed;width:80mm;min-height:300px;left:50%;top:50%;transform:translate(-50%,-50%);border:1px solid #ccc;background:white;z-index:99999;box-shadow:0 4px 20px rgba(0,0,0,0.3);'
     document.body.appendChild(iframe)
     const doc = iframe.contentDocument
     if (doc) {
       doc.open()
       doc.write(html)
       doc.close()
-      setTimeout(() => {
-        try { iframe.contentWindow?.print() } catch { alert('Gagal membuka dialog cetak') }
-        setTimeout(() => iframe.parentNode?.removeChild(iframe), 1000)
-      }, 300)
+      iframe.onload = () => {
+        setTimeout(() => {
+          try {
+            iframe.contentWindow?.focus()
+            iframe.contentWindow?.print()
+          } catch (e) {
+            alert('Gagal mencetak. Izinkan pop-up atau periksa printer.')
+          }
+          setTimeout(() => {
+            if (iframe.parentNode) iframe.parentNode.removeChild(iframe)
+          }, 2000)
+        }, 500)
+      }
     } else {
-      alert('Izinkan pop-up untuk mencetak struk')
+      alert('Izinkan pop-up untuk mencetak struk ke printer.')
     }
   }
 }
@@ -472,7 +491,7 @@ function formatNum(n) {
   min-height: 0;
 }
 
-/* Product card: modern, touch-friendly */
+/* Product card: accent lembut untuk membedakan dari background */
 .product-card {
   display: flex;
   flex-direction: column;
@@ -480,25 +499,25 @@ function formatNum(n) {
   justify-content: center;
   min-height: 5.25rem;
   padding: 0.875rem 0.625rem;
-  background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
-  border: 1px solid rgb(226 232 240);
+  background: linear-gradient(145deg, #f0fdf4 0%, #ecfdf5 50%, #d1fae5 100%);
+  border: 1px solid rgb(187 247 208);
   border-radius: 1rem;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 1px 2px rgba(34, 197, 94, 0.08);
   transition: all 0.2s ease;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
 .product-card:hover {
-  border-color: rgb(203 213 225);
-  background: linear-gradient(145deg, #f8fafc 0%, #f1f5f9 100%);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border-color: rgb(134 239 172);
+  background: linear-gradient(145deg, #ecfdf5 0%, #d1fae5 100%);
+  box-shadow: 0 2px 8px rgba(34, 197, 94, 0.12);
   transform: translateY(-1px);
 }
 .product-card:active {
   transform: scale(0.97) translateY(0);
-  background: linear-gradient(145deg, #ecfdf5 0%, #d1fae5 100%);
-  border-color: rgba(22, 163, 74, 0.35);
-  box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.15);
+  background: linear-gradient(145deg, #dcfce7 0%, #bbf7d0 100%);
+  border-color: rgba(22, 163, 74, 0.4);
+  box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.2);
 }
 .product-name {
   font-size: 0.8125rem;
@@ -522,7 +541,7 @@ function formatNum(n) {
 }
 .product-card-skeleton {
   min-height: 5.25rem;
-  background: linear-gradient(90deg, rgb(241 245 249) 25%, rgb(226 232 240) 50%, rgb(241 245 249) 75%);
+  background: linear-gradient(90deg, rgb(240 253 244) 25%, rgb(209 250 229) 50%, rgb(240 253 244) 75%);
   background-size: 200% 100%;
   animation: product-shimmer 1.2s ease-in-out infinite;
 }
@@ -541,7 +560,7 @@ function formatNum(n) {
   .product-price { font-size: 0.875rem; }
 }
 
-/* Cart: lebar sama dengan bottom nav (360px), jarak cukup dari bottom nav */
+/* Cart: lebar sama dengan bottom nav, jarak dari bottom nav */
 .cart-sticky {
   position: fixed;
   left: 50%;
@@ -549,18 +568,27 @@ function formatNum(n) {
   width: 100%;
   max-width: 360px;
   bottom: 6.5rem;
-  max-height: 50vh;
+  max-height: 45vh;
   border-radius: 1rem;
   z-index: 15;
   overflow: hidden;
   background: white;
   box-shadow: 0 -4px 20px rgba(0,0,0,0.08);
   border: 1px solid rgb(229 231 235);
+  display: flex;
+  flex-direction: column;
+  transition: max-height 0.25s ease;
+}
+.cart-sticky.cart-expanded {
+  max-height: 70vh;
 }
 
 @media (min-width: 768px) {
   .cart-sticky {
-    bottom: 7rem;
+    bottom: 7.5rem;
+  }
+  .cart-sticky.cart-expanded {
+    max-height: 75vh;
   }
 }
 

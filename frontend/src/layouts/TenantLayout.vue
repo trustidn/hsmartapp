@@ -30,26 +30,26 @@
     </header>
 
     <!-- Main content -->
-    <main class="flex-1 overflow-auto pb-24 md:pb-28">
+    <main class="flex-1 overflow-auto pb-28 md:pb-32">
       <div class="min-h-full p-4 md:p-6 max-w-4xl mx-auto">
         <router-view />
       </div>
     </main>
 
-    <!-- Bottom nav: Mac dock style -->
+    <!-- Bottom nav: diperbesar untuk navigasi jari (touch-friendly) -->
     <nav
-      class="fixed bottom-4 left-1/2 -translate-x-1/2 z-20 safe-bottom nav-dock"
-      style="bottom: max(1rem, env(safe-area-inset-bottom))"
+      class="fixed bottom-2 left-1/2 -translate-x-1/2 z-20 safe-bottom nav-dock"
+      style="bottom: max(0.5rem, env(safe-area-inset-bottom))"
     >
       <div
-        class="flex items-center justify-between w-full px-1 py-2 rounded-2xl bg-white/95 backdrop-blur-xl shadow-lg shadow-black/10 border border-gray-100/80 nav-dock-inner"
-        style="max-width: 360px"
+        class="flex items-center justify-between w-full px-2 py-3 rounded-2xl bg-white/95 backdrop-blur-xl shadow-lg shadow-black/10 border border-gray-100/80 nav-dock-inner"
+        style="max-width: 400px"
       >
         <router-link
           v-for="item in bottomNavItems"
           :key="item.to"
           :to="item.to"
-          class="flex flex-col items-center justify-center w-14 min-w-[3.5rem] py-2 rounded-xl transition-all duration-200 gap-1 touch-manipulation"
+          class="flex flex-col items-center justify-center min-w-[4rem] w-16 py-3 px-1 rounded-xl transition-all duration-200 gap-1.5 touch-manipulation"
           :class="[
             item.featured
               ? isActive(item)
@@ -60,8 +60,8 @@
                 : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700',
           ]"
         >
-          <span class="leading-none [&_svg]:inline-block flex-shrink-0" :class="item.featured ? '[&_svg]:w-6 [&_svg]:h-6' : '[&_svg]:w-5 [&_svg]:h-5'" v-html="item.icon" />
-          <span class="text-[10px] font-medium leading-tight text-center truncate w-full px-0.5">{{ item.label }}</span>
+          <span class="leading-none [&_svg]:inline-block flex-shrink-0" :class="item.featured ? '[&_svg]:w-7 [&_svg]:h-7' : '[&_svg]:w-6 [&_svg]:h-6'" v-html="item.icon" />
+          <span class="text-[11px] font-semibold leading-tight text-center truncate w-full px-0.5">{{ item.label }}</span>
         </router-link>
       </div>
     </nav>

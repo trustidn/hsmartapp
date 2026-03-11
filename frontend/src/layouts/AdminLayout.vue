@@ -45,18 +45,18 @@
         </nav>
       </aside>
 
-      <!-- Mobile nav: bottom dock style (like tenant) when sidebar hidden -->
-      <nav class="md:hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-20 safe-bottom" style="bottom: max(1rem, env(safe-area-inset-bottom))">
-        <div class="flex items-center gap-1 px-3 py-2 rounded-2xl bg-white/95 backdrop-blur-xl shadow-lg shadow-black/10 border border-gray-100/80" style="max-width: 360px">
+      <!-- Mobile nav: diperbesar untuk touch (jari) -->
+      <nav class="md:hidden fixed bottom-2 left-1/2 -translate-x-1/2 z-20 safe-bottom" style="bottom: max(0.5rem, env(safe-area-inset-bottom))">
+        <div class="flex items-center gap-1 px-2 py-3 rounded-2xl bg-white/95 backdrop-blur-xl shadow-lg shadow-black/10 border border-gray-100/80" style="max-width: 400px">
           <router-link
             v-for="item in navItems"
             :key="item.to"
             :to="item.to"
-            class="flex flex-col items-center justify-center min-w-[48px] py-2 px-1 rounded-xl transition-colors"
+            class="flex flex-col items-center justify-center min-w-[4rem] w-16 py-3 px-1 rounded-xl transition-colors touch-manipulation"
             :class="isActive(item) ? 'text-primary-600 bg-primary-50' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'"
           >
-            <span class="text-lg [&_svg]:w-5 [&_svg]:h-5" v-html="item.icon" />
-            <span class="text-[10px] font-medium leading-tight">{{ item.label }}</span>
+            <span class="text-lg [&_svg]:w-6 [&_svg]:h-6" v-html="item.icon" />
+            <span class="text-[11px] font-semibold leading-tight">{{ item.label }}</span>
           </router-link>
         </div>
       </nav>
