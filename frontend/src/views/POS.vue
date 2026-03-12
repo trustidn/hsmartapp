@@ -391,7 +391,7 @@ function buildReceiptBodyHtml(sale, s) {
 function buildReceiptForInPagePrint(sale, s) {
   const inner = buildReceiptBodyHtml(sale, s)
   const style =
-    '.receipt-print-area .receipt{width:100%;padding:2mm 0;font-family:"Courier New",Courier,monospace;font-size:clamp(12px,2.5vw,16px);line-height:1.5;color:#000}' +
+    '.receipt-print-area .receipt{width:100%;padding:2mm 0;font-family:"Courier New",Courier,monospace;font-size:14px;line-height:1.5;color:#000}' +
     '.receipt-print-area .store{font-weight:bold;text-align:center;font-size:18px;margin-bottom:4px;line-height:1.3}' +
     '.receipt-print-area .date{text-align:center;color:#555;margin-bottom:8px;font-size:13px}' +
     '.receipt-print-area .sep{border-top:1px dashed #999;margin:10px 0;line-height:0}' +
@@ -418,12 +418,16 @@ function doPrint() {
     window.onafterprint = null
   }
   window.onafterprint = cleanup
-  try {
-    window.print()
-  } catch (e) {
-    alert('Gagal membuka dialog cetak. Periksa pengaturan printer.')
-    cleanup()
+  // Delay agar DOM ter-render dulu (penting untuk Android)
+  const runPrint = () => {
+    try {
+      window.print()
+    } catch (e) {
+      alert('Gagal membuka dialog cetak. Periksa pengaturan printer.')
+      cleanup()
+    }
   }
+  requestAnimationFrame(() => setTimeout(runPrint, 200))
 }
 
 function doPdf() {
@@ -579,37 +583,49 @@ function formatNum(n) {
 }
 </style>
 
-<!-- Area cetak in-page: proporsional di kertas ukuran apapun -->
+<!-- Area cetak in-page: proporsional di kertas ukuran apapun, perbaikan Android -->
 <style>
+/* Tersembunyi di layar tapi tetap dalam viewport (Android perlu element "on-page" agar tercetak) */
 .receipt-print-area {
   position: fixed;
-  left: -9999px;
+  left: 0;
   top: 0;
   width: 80mm;
+  max-width: 80mm;
   visibility: hidden;
   pointer-events: none;
   background: white;
+  z-index: -1;
 }
+/* Saat cetak: sembunyikan semua selain receipt (display lebih andal di Android daripada visibility) */
 @media print {
-  body * {
-    visibility: hidden;
-  }
-  #receipt-print-area,
-  #receipt-print-area * {
-    visibility: visible;
+  /* Sembunyikan app utama, hanya tampilkan area struk */
+  body > *:not(#receipt-print-area) {
+    display: none !important;
+    visibility: hidden !important;
   }
   #receipt-print-area {
-    position: fixed;
-    left: 0;
-    top: 0;
+    display: block !important;
+    visibility: visible !important;
+    position: fixed !important;
+    left: 0 !important;
+    top: 0 !important;
+    right: 0 !important;
     width: 100% !important;
     max-width: 100%;
     min-width: 80mm;
     box-sizing: border-box;
     padding: 5mm;
-    visibility: visible;
+    margin: 0 !important;
+    background: white !important;
+    color: #000 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
-  /* Ukuran kertas mengikuti pilihan pengguna (A4, Letter, thermal 80mm, dll) */
+  #receipt-print-area * {
+    visibility: visible !important;
+    color: inherit;
+  }
   @page {
     size: auto;
     margin: 5mm;
