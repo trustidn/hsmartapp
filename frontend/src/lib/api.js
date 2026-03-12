@@ -50,6 +50,27 @@ export const api = {
     get: (id) => request('GET', '/products/get?id=' + id),
     update: (id, data) => request('PUT', '/products?id=' + id, data),
     delete: (id) => request('DELETE', '/products?id=' + id),
+    uploadImage: async (file) => {
+      const form = new FormData()
+      form.append('file', file)
+      const res = await fetch(BASE + '/upload/product-image', {
+        method: 'POST',
+        headers: getAuthNoContentType(),
+        body: form,
+      })
+      if (!res.ok) {
+        const t = await res.text()
+        let err
+        try {
+          err = JSON.parse(t)
+        } catch {
+          err = { error: t || res.statusText }
+        }
+        throw new Error(err.error || 'Upload gagal')
+      }
+      const data = await res.json()
+      return data.url
+    },
   },
   sales: {
     create: (data) => request('POST', '/sales', data),

@@ -55,6 +55,7 @@ func (s *Service) List(ctx context.Context, tenantID uuid.UUID, activeOnly bool)
 type CreateInput struct {
 	Name      string `json:"name"`
 	Price     int64  `json:"price"`
+	ImageURL  string `json:"image_url"`
 	SortOrder int    `json:"sort_order"`
 }
 
@@ -74,7 +75,7 @@ func (s *Service) Create(ctx context.Context, tenantID uuid.UUID, input CreateIn
 	if input.SortOrder == 0 {
 		input.SortOrder = count + 1
 	}
-	return s.repo.Create(ctx, tenantID, input.Name, input.Price, input.SortOrder)
+	return s.repo.Create(ctx, tenantID, input.Name, input.Price, input.ImageURL, input.SortOrder)
 }
 
 func (s *Service) Get(ctx context.Context, id, tenantID uuid.UUID) (*Product, error) {
@@ -82,10 +83,11 @@ func (s *Service) Get(ctx context.Context, id, tenantID uuid.UUID) (*Product, er
 }
 
 type UpdateInput struct {
-	Name      string `json:"name"`
-	Price     int64  `json:"price"`
-	IsActive  *bool  `json:"is_active"`
-	SortOrder int    `json:"sort_order"`
+	Name      string  `json:"name"`
+	Price     int64   `json:"price"`
+	ImageURL  *string `json:"image_url"`
+	IsActive  *bool   `json:"is_active"`
+	SortOrder int     `json:"sort_order"`
 }
 
 func (s *Service) Update(ctx context.Context, id, tenantID uuid.UUID, input UpdateInput) error {
@@ -109,7 +111,7 @@ func (s *Service) Update(ctx context.Context, id, tenantID uuid.UUID, input Upda
 	if sortOrder == 0 {
 		sortOrder = p.SortOrder
 	}
-	return s.repo.Update(ctx, id, tenantID, name, price, active, sortOrder)
+	return s.repo.Update(ctx, id, tenantID, name, price, input.ImageURL, active, sortOrder)
 }
 
 func (s *Service) Delete(ctx context.Context, id, tenantID uuid.UUID) error {

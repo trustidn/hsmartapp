@@ -14,8 +14,9 @@ import (
 
 // Max sizes
 const (
-	MaxLogoSize       = 2 << 20  // 2MB
-	MaxPaymentProofSize = 5 << 20 // 5MB
+	MaxLogoSize         = 2 << 20  // 2MB
+	MaxPaymentProofSize = 5 << 20  // 5MB
+	MaxProductImageSize = 500 << 10 // 500KB (setelah kompresi client)
 )
 
 type Handler struct {
@@ -116,6 +117,51 @@ func (h *Handler) UploadPaymentProof(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	url := h.buildURL("/uploads/payment-proofs/" + name)
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte(fmt.Sprintf(`{"url":"%s"}`, url)))
+}
+
+func (h *Handler) UploadProductImage(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+		return
+	}
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		http.Error(w, `{"error":"file required"}`, http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+	if header.Size > MaxProductImageSize {
+		http.Error(w, `{"error":"file too large (max 500KB, gunakan kompresi sebelum upload)"}`, http.StatusBadRequest)
+		return
+	}
+	ext := strings.ToLower(filepath.Ext(header.Filename))
+	if ext != ".png" && ext != ".jpg" && ext != ".jpeg" && ext != ".webp" {
+		ext = ".jpg"
+	}
+	name := uuid.New().String() + ext
+	dir := filepath.Join(h.uploadDir, "products")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		log.Printf("[upload] mkdir products: %v", err)
+		http.Error(w, `{"error":"upload failed"}`, http.StatusInternalServerError)
+		return
+	}
+	path := filepath.Join(dir, name)
+	dst, err := os.Create(path)
+	if err != nil {
+		log.Printf("[upload] create file: %v", err)
+		http.Error(w, `{"error":"upload failed"}`, http.StatusInternalServerError)
+		return
+	}
+	defer dst.Close()
+	if _, err := io.Copy(dst, file); err != nil {
+		os.Remove(path)
+		log.Printf("[upload] copy: %v", err)
+		http.Error(w, `{"error":"upload failed"}`, http.StatusInternalServerError)
+		return
+	}
+	url := h.buildURL("/uploads/products/" + name)
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte(fmt.Sprintf(`{"url":"%s"}`, url)))
 }

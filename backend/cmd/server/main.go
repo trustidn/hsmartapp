@@ -153,9 +153,13 @@ func run(ctx context.Context) error {
 	if err := os.MkdirAll(filepath.Join(uploadDir, "payment-proofs"), 0755); err != nil {
 		log.Printf("[main] mkdir uploads/payment-proofs: %v", err)
 	}
+	if err := os.MkdirAll(filepath.Join(uploadDir, "products"), 0755); err != nil {
+		log.Printf("[main] mkdir uploads/products: %v", err)
+	}
 	uploadHandler := upload.NewHandler(uploadDir, baseURL)
 	mux.Handle("POST /api/admin/upload/logo", adminGuard(http.HandlerFunc(uploadHandler.UploadLogo)))
 	mux.Handle("POST /api/upload/payment-proof", protect(http.HandlerFunc(uploadHandler.UploadPaymentProof)))
+	mux.Handle("POST /api/upload/product-image", protect(http.HandlerFunc(uploadHandler.UploadProductImage)))
 	mux.Handle("/uploads/", upload.ServeUploads(uploadDir))
 
 	// Public
@@ -202,7 +206,8 @@ func run(ctx context.Context) error {
 		}
 	} else {
 		// No static dir: API-only mode (frontend served elsewhere)
-		mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
+		// Use {$} so "GET /{$}" matches only root, avoiding conflict with /uploads/
+		mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "text/plain")
 			w.Write([]byte("HSmart API"))
 		})

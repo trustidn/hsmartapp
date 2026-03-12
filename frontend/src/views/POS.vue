@@ -33,6 +33,16 @@
           class="product-card"
           @click="addProduct(p)"
         >
+          <div class="product-image-wrap">
+            <img
+              v-if="p.image_url"
+              :src="productImageUrl(p.image_url)"
+              :alt="p.name"
+              class="product-image"
+              loading="lazy"
+            />
+            <svg v-else class="product-image-placeholder" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+          </div>
           <span class="product-name">{{ p.name }}</span>
           <span class="product-price">Rp {{ formatNum(p.price) }}</span>
         </button>
@@ -385,6 +395,11 @@ function doWhatsApp() {
   window.open(url, '_blank', 'noopener')
 }
 
+function productImageUrl(url) {
+  if (!url) return ''
+  return url.startsWith('http') ? url : (url.startsWith('/') ? url : '/' + url)
+}
+
 function formatNum(n) {
   return Number(n).toLocaleString('id-ID')
 }
@@ -406,9 +421,10 @@ function formatNum(n) {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   min-height: 5.25rem;
   padding: 0.875rem 0.625rem;
+  overflow: hidden;
   background: linear-gradient(145deg, #f0fdf4 0%, #ecfdf5 50%, #d1fae5 100%);
   border: 1px solid rgb(187 247 208);
   border-radius: 1rem;
@@ -428,6 +444,28 @@ function formatNum(n) {
   background: linear-gradient(145deg, #dcfce7 0%, #bbf7d0 100%);
   border-color: rgba(22, 163, 74, 0.4);
   box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.2);
+}
+.product-image-wrap {
+  width: 100%;
+  aspect-ratio: 1;
+  max-height: 4rem;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  background: rgb(240 253 244);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.product-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.product-image-placeholder {
+  width: 2rem;
+  height: 2rem;
+  color: rgb(209 250 229);
 }
 .product-name {
   font-size: 0.8125rem;
