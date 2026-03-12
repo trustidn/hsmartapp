@@ -119,56 +119,56 @@
       </div>
     </aside>
 
-    <!-- Payment form modal -->
+    <!-- Payment form modal - mobile-friendly, touch targets 48px+ -->
     <div
       v-if="showPaymentForm"
       class="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center p-4"
       @click.self="cancelPaymentForm"
     >
-      <div class="bg-white rounded-2xl max-w-sm w-full p-5 shadow-xl" @click.stop>
-        <h3 class="font-semibold text-lg mb-4">Pembayaran — {{ paymentLabel(selectedPaymentMethod) }}</h3>
-        <div class="space-y-3">
+      <div class="bg-white rounded-2xl w-full max-w-md p-6 sm:p-6 shadow-xl touch-manipulation" @click.stop>
+        <h3 class="font-semibold text-xl mb-5">Pembayaran — {{ paymentLabel(selectedPaymentMethod) }}</h3>
+        <div class="space-y-4">
           <div>
-            <label class="block text-xs text-gray-500 mb-1">Nama (Opsional)</label>
+            <label class="block text-sm font-medium text-gray-600 mb-2">Nama (Opsional)</label>
             <input
               v-model="paymentForm.customerName"
               type="text"
               placeholder="Nama pelanggan"
-              class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm"
+              class="w-full px-4 py-3.5 min-h-[48px] rounded-xl border border-gray-300 text-base focus:ring-2 focus:ring-primary-400 focus:border-primary-500"
             />
           </div>
           <div>
-            <label class="block text-xs text-gray-500 mb-1">No HP (Opsional<span class="text-amber-600">, dibutuhkan saat pengiriman via WA</span>)</label>
+            <label class="block text-sm font-medium text-gray-600 mb-2">No HP (Opsional<span class="text-amber-600 font-normal">, dibutuhkan saat pengiriman via WA</span>)</label>
             <input
               v-model="paymentForm.customerPhone"
               type="tel"
               placeholder="08123456789"
-              class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm"
+              class="w-full px-4 py-3.5 min-h-[48px] rounded-xl border border-gray-300 text-base focus:ring-2 focus:ring-primary-400 focus:border-primary-500"
             />
           </div>
           <div>
-            <label class="block text-xs text-gray-500 mb-1">Jumlah bayar <span class="text-red-500">*</span></label>
+            <label class="block text-sm font-medium text-gray-600 mb-2">Jumlah bayar <span class="text-red-500">*</span></label>
             <input
               v-model.number="paymentForm.amountPaid"
               type="number"
               min="0"
               placeholder="0"
-              class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm tabular-nums"
+              class="w-full px-4 py-3.5 min-h-[48px] rounded-xl border border-gray-300 text-base tabular-nums focus:ring-2 focus:ring-primary-400 focus:border-primary-500"
             />
-            <p class="text-xs text-gray-500 mt-1">Total: Rp {{ formatNum(pos.total) }}</p>
+            <p class="text-sm text-gray-500 mt-2">Total: Rp {{ formatNum(pos.total) }}</p>
           </div>
         </div>
-        <div class="flex gap-2 mt-5">
+        <div class="flex gap-3 mt-6">
           <button
             type="button"
-            class="flex-1 py-2.5 rounded-xl border border-gray-300 text-sm font-medium hover:bg-gray-50"
+            class="flex-1 min-h-[52px] py-3.5 rounded-xl border border-gray-300 text-base font-semibold hover:bg-gray-50 active:bg-gray-100 touch-manipulation"
             @click="cancelPaymentForm"
           >
             Batal
           </button>
           <button
             type="button"
-            class="flex-1 py-2.5 rounded-xl bg-primary-600 text-white text-sm font-medium hover:bg-primary-700 disabled:opacity-50 disabled:pointer-events-none"
+            class="flex-1 min-h-[52px] py-3.5 rounded-xl bg-primary-600 text-white text-base font-semibold hover:bg-primary-700 active:bg-primary-800 disabled:opacity-50 disabled:pointer-events-none touch-manipulation"
             :disabled="!isAmountValid || paying"
             @click="submitPayment"
           >
