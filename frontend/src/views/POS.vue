@@ -567,7 +567,7 @@ function formatNum(n) {
   transform: translateX(-50%);
   width: 100%;
   max-width: 360px;
-  bottom: 6.5rem;
+  bottom: 8rem;
   max-height: 45vh;
   border-radius: 1rem;
   z-index: 15;
@@ -585,7 +585,7 @@ function formatNum(n) {
 
 @media (min-width: 768px) {
   .cart-sticky {
-    bottom: 7.5rem;
+    bottom: 9rem;
   }
   .cart-sticky.cart-expanded {
     max-height: 75vh;
