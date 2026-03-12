@@ -178,17 +178,17 @@
       </div>
     </div>
 
-    <!-- Receipt modal -->
+    <!-- Receipt modal - mobile-friendly -->
     <div
       v-if="paidReceipt"
       class="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center p-4"
       @click.self="closeReceipt"
     >
-      <div class="bg-white rounded-2xl max-w-sm w-full max-h-[85vh] overflow-auto p-5 shadow-xl">
+      <div class="bg-white rounded-2xl w-full max-w-md max-h-[90vh] overflow-auto p-5 shadow-xl touch-manipulation">
         <div class="flex justify-between items-center mb-4">
-          <h3 class="font-semibold text-lg">Struk</h3>
-          <button type="button" class="p-2 text-gray-500 rounded-lg hover:bg-gray-100" @click="closeReceipt">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+          <h3 class="font-semibold text-xl">Struk</h3>
+          <button type="button" class="p-2.5 min-w-[44px] min-h-[44px] text-gray-500 rounded-xl hover:bg-gray-100 active:bg-gray-200" @click="closeReceipt" aria-label="Tutup">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
         <ReceiptContent
@@ -197,14 +197,19 @@
           :amount-paid="paidReceipt?.amount_paid"
           :change="paidReceipt?.change"
         />
-        <div class="mt-4 flex flex-wrap gap-2">
-          <button type="button" class="flex-1 min-w-[80px] py-2.5 rounded-xl border border-gray-300 text-sm font-medium hover:bg-gray-50" @click="doPrint">Cetak</button>
-          <button type="button" class="flex-1 min-w-[80px] py-2.5 rounded-xl bg-primary-600 text-white text-sm font-medium hover:bg-primary-700" @click="doPdf">PDF</button>
-          <button type="button" class="flex-1 min-w-[80px] py-2.5 rounded-xl bg-green-600 text-white text-sm font-medium hover:bg-green-700" @click="doWhatsApp">WhatsApp</button>
-          <button type="button" class="flex-1 min-w-[80px] py-2.5 rounded-xl bg-gray-100 text-gray-700 text-sm font-medium hover:bg-gray-200" @click="closeReceipt">Tutup</button>
+        <div class="mt-6 flex flex-wrap gap-3">
+          <button type="button" class="flex-1 min-w-[100px] min-h-[48px] py-3 rounded-xl border border-gray-300 text-base font-semibold hover:bg-gray-50 active:bg-gray-100" @click="doPrint">Cetak</button>
+          <button type="button" class="flex-1 min-w-[100px] min-h-[48px] py-3 rounded-xl bg-primary-600 text-white text-base font-semibold hover:bg-primary-700 active:bg-primary-800" @click="doPdf">PDF</button>
+          <button type="button" class="flex-1 min-w-[100px] min-h-[48px] py-3 rounded-xl bg-green-600 text-white text-base font-semibold hover:bg-green-700 active:bg-green-800" @click="doWhatsApp">WhatsApp</button>
+          <button type="button" class="flex-1 min-w-[100px] min-h-[48px] py-3 rounded-xl bg-gray-100 text-gray-700 text-base font-semibold hover:bg-gray-200 active:bg-gray-300" @click="closeReceipt">Tutup</button>
         </div>
       </div>
     </div>
+
+    <!-- Area cetak in-page (tanpa popup) - tersembunyi di layar, terlihat saat print -->
+    <Teleport to="body">
+      <div id="receipt-print-area" class="receipt-print-area" aria-hidden="true" />
+    </Teleport>
   </div>
 </template>
 
@@ -350,7 +355,7 @@ function paymentLabel(m) {
   return map[m] || m || 'Tunai'
 }
 
-function buildReceiptHtml(sale, s) {
+function buildReceiptBodyHtml(sale, s) {
   const name = (s?.name || 'HSmart POS')
   const date = sale.created_at ? new Date(sale.created_at).toLocaleString('id-ID') : ''
   const trunc = (str, len) => String(str).slice(0, len)
@@ -372,86 +377,52 @@ function buildReceiptHtml(sale, s) {
   totHtml += '<div class="row"><span>Metode</span><span>' + escapeHtml(paymentLabel(sale.payment_method)) + '</span></div>'
   const footer = s?.receipt_footer ? '<div class="footer">' + escapeHtml(s.receipt_footer) + '</div>' : ''
   return (
-    '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=80mm"><title>Struk</title>' +
-    '<style>' +
-    '@page{size:80mm auto;margin:4mm}' +
-    'body{margin:0;padding:0;font-family:"Courier New",Courier,monospace;font-size:14px;line-height:1.5;color:#000;box-sizing:border-box;width:72mm;min-width:72mm;max-width:72mm}' +
-    '*{box-sizing:border-box}' +
-    '.receipt{width:100%;padding:2mm 0}' +
-    '.store{font-weight:bold;text-align:center;font-size:18px;margin-bottom:4px;line-height:1.3}' +
-    '.date{text-align:center;color:#555;margin-bottom:8px;font-size:13px}' +
-    '.sep{border-top:1px dashed #999;margin:10px 0;line-height:0}' +
-    '.row{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin:4px 0;min-height:1.4em;font-size:14px}' +
-    '.row .item,.row span:first-child{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}' +
-    '.row .amt,.row span:last-child{flex-shrink:0;text-align:right;white-space:nowrap}' +
-    '.row.total{font-weight:bold;margin-top:8px;font-size:16px}' +
-    '.row.change{font-weight:bold;color:#15803d;font-size:14px}' +
-    '.footer{text-align:center;font-size:12px;color:#666;margin-top:12px;line-height:1.4;white-space:pre-wrap}' +
-    '@media print{html,body{margin:0;padding:0;width:80mm!important;min-width:80mm;max-width:80mm;-webkit-print-color-adjust:exact;print-color-adjust:exact}.receipt{width:100%}@page{size:80mm auto;margin:4mm}}' +
-    '</style></head><body>' +
-    '<div class="receipt">' +
     '<div class="store">' + escapeHtml(name) + '</div>' +
     '<div class="date">' + escapeHtml(date) + '</div>' +
     '<div class="sep"></div>' +
     itemsHtml +
     '<div class="sep"></div>' +
     totHtml +
-    footer +
-    '</div></body></html>'
+    footer
   )
 }
+
+/** Struk untuk cetak in-page (tanpa popup/iframe) */
+function buildReceiptForInPagePrint(sale, s) {
+  const inner = buildReceiptBodyHtml(sale, s)
+  const style =
+    '.receipt-print-area .receipt{width:100%;padding:2mm 0;font-family:"Courier New",Courier,monospace;font-size:clamp(12px,2.5vw,16px);line-height:1.5;color:#000}' +
+    '.receipt-print-area .store{font-weight:bold;text-align:center;font-size:18px;margin-bottom:4px;line-height:1.3}' +
+    '.receipt-print-area .date{text-align:center;color:#555;margin-bottom:8px;font-size:13px}' +
+    '.receipt-print-area .sep{border-top:1px dashed #999;margin:10px 0;line-height:0}' +
+    '.receipt-print-area .row{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin:4px 0;min-height:1.4em;font-size:14px}' +
+    '.receipt-print-area .row .item,.receipt-print-area .row span:first-child{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}' +
+    '.receipt-print-area .row .amt,.receipt-print-area .row span:last-child{flex-shrink:0;text-align:right;white-space:nowrap}' +
+    '.receipt-print-area .row.total{font-weight:bold;margin-top:8px;font-size:16px}' +
+    '.receipt-print-area .row.change{font-weight:bold;color:#15803d;font-size:14px}' +
+    '.receipt-print-area .footer{text-align:center;font-size:12px;color:#666;margin-top:12px;line-height:1.4;white-space:pre-wrap}'
+  return '<style>' + style + '</style><div class="receipt">' + inner + '</div>'
+}
+
 function escapeHtml(str) {
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
 
 function doPrint() {
   if (!paidReceipt.value) return
-  const s = settings.value
-  const html = buildReceiptHtml(paidReceipt.value, s)
-
-  // Metode 1: Buka di tab/window baru (lebih andal untuk print)
-  const printWin = window.open('', '_blank', 'noopener,noreferrer,width=320,height=500')
-  if (printWin) {
-    printWin.document.write(html)
-    printWin.document.close()
-    printWin.focus()
-    // Delay agar konten selesai di-render sebelum print dialog muncul
-    setTimeout(() => {
-      try {
-        printWin.print()
-        printWin.onafterprint = () => printWin.close()
-      } catch (e) {
-        alert('Gagal membuka dialog cetak. Periksa pengaturan printer.')
-        printWin.close()
-      }
-    }, 600)
-  } else {
-    // Fallback: iframe (saat pop-up diblokir)
-    const iframe = document.createElement('iframe')
-    iframe.name = 'print-frame'
-    iframe.style.cssText = 'position:fixed;width:80mm;min-height:300px;left:50%;top:50%;transform:translate(-50%,-50%);border:1px solid #ccc;background:white;z-index:99999;box-shadow:0 4px 20px rgba(0,0,0,0.3);'
-    document.body.appendChild(iframe)
-    const doc = iframe.contentDocument
-    if (doc) {
-      doc.open()
-      doc.write(html)
-      doc.close()
-      iframe.onload = () => {
-        setTimeout(() => {
-          try {
-            iframe.contentWindow?.focus()
-            iframe.contentWindow?.print()
-          } catch (e) {
-            alert('Gagal mencetak. Izinkan pop-up atau periksa printer.')
-          }
-          setTimeout(() => {
-            if (iframe.parentNode) iframe.parentNode.removeChild(iframe)
-          }, 2000)
-        }, 500)
-      }
-    } else {
-      alert('Izinkan pop-up untuk mencetak struk ke printer.')
-    }
+  const el = document.getElementById('receipt-print-area')
+  if (!el) return
+  el.innerHTML = buildReceiptForInPagePrint(paidReceipt.value, settings.value)
+  const cleanup = () => {
+    el.innerHTML = ''
+    window.onafterprint = null
+  }
+  window.onafterprint = cleanup
+  try {
+    window.print()
+  } catch (e) {
+    alert('Gagal membuka dialog cetak. Periksa pengaturan printer.')
+    cleanup()
   }
 }
 
@@ -605,5 +576,43 @@ function formatNum(n) {
   max-height: 0;
   opacity: 0;
   overflow: hidden;
+}
+</style>
+
+<!-- Area cetak in-page: proporsional di kertas ukuran apapun -->
+<style>
+.receipt-print-area {
+  position: fixed;
+  left: -9999px;
+  top: 0;
+  width: 80mm;
+  visibility: hidden;
+  pointer-events: none;
+  background: white;
+}
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #receipt-print-area,
+  #receipt-print-area * {
+    visibility: visible;
+  }
+  #receipt-print-area {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 100% !important;
+    max-width: 100%;
+    min-width: 80mm;
+    box-sizing: border-box;
+    padding: 5mm;
+    visibility: visible;
+  }
+  /* Ukuran kertas mengikuti pilihan pengguna (A4, Letter, thermal 80mm, dll) */
+  @page {
+    size: auto;
+    margin: 5mm;
+  }
 }
 </style>
