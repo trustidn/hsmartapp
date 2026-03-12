@@ -42,7 +42,7 @@ const routes = [
       { path: 'reports', name: 'Reports', component: Reports, meta: { title: 'Laporan' } },
       { path: 'settings', name: 'Settings', component: Settings, meta: { title: 'Pengaturan' } },
       { path: 'subscription', name: 'Subscription', component: () => import('../views/Subscription.vue'), meta: { title: 'Langganan' } },
-      { path: 'more', name: 'More', component: More, meta: { title: 'Lainnya' } },
+      { path: 'more', name: 'More', redirect: '/app', meta: { title: 'Lainnya' } },
     ],
   },
 ]
