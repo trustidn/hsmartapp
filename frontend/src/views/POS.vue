@@ -62,10 +62,10 @@
         <span class="text-sm font-semibold">{{ cartExpanded ? 'Sembunyikan' : 'Tampilkan daftar belanjaan' }}</span>
       </button>
 
-      <!-- Cart list (expandable) - minimal 50% layar saat maximize -->
+      <!-- Cart list (expandable) - max tinggi tidak melebihi layar (penting untuk iPhone) -->
       <Transition name="cart-toggle">
         <div v-show="cartExpanded" class="cart-content">
-          <div class="cart-list-scroll px-3 py-2 min-h-[50vh] max-h-[50vh] overflow-y-auto">
+          <div class="cart-list-scroll px-3 py-2 overflow-y-auto">
             <div v-if="pos.cart.length === 0" class="flex flex-col items-center justify-center py-6 text-gray-400">
               <svg class="w-10 h-10 mb-1 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z" />
@@ -387,6 +387,26 @@ function buildReceiptBodyHtml(sale, s) {
   )
 }
 
+/** Struk dokumen HTML penuh (untuk window baru - fallback mobile) */
+function buildReceiptFullDocument(sale, s) {
+  const inner = buildReceiptBodyHtml(sale, s)
+  const style =
+    'body{margin:0;padding:0;font-family:"Courier New",Courier,monospace;font-size:14px;line-height:1.5;color:#000;background:#fff}' +
+    '.receipt{width:100%;padding:2mm 0;max-width:80mm;margin:0 auto;box-sizing:border-box}' +
+    '.store{font-weight:bold;text-align:center;font-size:18px;margin-bottom:4px;line-height:1.3}' +
+    '.date{text-align:center;color:#555;margin-bottom:8px;font-size:13px}' +
+    '.sep{border-top:1px dashed #999;margin:10px 0;line-height:0}' +
+    '.row{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin:4px 0;min-height:1.4em;font-size:14px}' +
+    '.row .item,.row span:first-child{flex:1;min-width:0}' +
+    '.row .amt,.row span:last-child{flex-shrink:0;text-align:right;white-space:nowrap}' +
+    '.row.total{font-weight:bold;margin-top:8px;font-size:16px}' +
+    '.row.change{font-weight:bold;color:#15803d;font-size:14px}' +
+    '.footer{text-align:center;font-size:12px;color:#666;margin-top:12px}' +
+    '@page{size:auto;margin:5mm}' +
+    '@media print{body{background:#fff;color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact}}'
+  return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width"><title>Struk</title><style>' + style + '</style></head><body><div class="receipt">' + inner + '</div></body></html>'
+}
+
 /** Struk untuk cetak in-page (tanpa popup/iframe) */
 function buildReceiptForInPagePrint(sale, s) {
   const inner = buildReceiptBodyHtml(sale, s)
@@ -408,22 +428,53 @@ function escapeHtml(str) {
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
 
+/** Deteksi perangkat mobile (bukan hanya viewport) */
+function isMobileDevice() {
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+}
+
 function doPrint() {
   if (!paidReceipt.value) return
+  const s = settings.value
+  const sale = paidReceipt.value
+
+  // Di ponsel: fallback ke window baru dengan dokumen HTML penuh (lebih andal di Chrome/Safari mobile)
+  if (isMobileDevice()) {
+    const html = buildReceiptFullDocument(sale, s)
+    const w = window.open('', '_blank', 'noopener,noreferrer,width=320,height=500')
+    if (w) {
+      w.document.write(html)
+      w.document.close()
+      w.focus()
+      setTimeout(() => {
+        try {
+          w.print()
+          w.onafterprint = () => w.close()
+        } catch (e) {
+          alert('Gagal membuka dialog cetak.')
+          w.close()
+        }
+      }, 400)
+    } else {
+      alert('Izinkan pop-up untuk mencetak struk.')
+    }
+    return
+  }
+
+  // Desktop: cetak in-page
   const el = document.getElementById('receipt-print-area')
   if (!el) return
-  el.innerHTML = buildReceiptForInPagePrint(paidReceipt.value, settings.value)
+  el.innerHTML = buildReceiptForInPagePrint(sale, s)
   const cleanup = () => {
     el.innerHTML = ''
     window.onafterprint = null
   }
   window.onafterprint = cleanup
-  // Delay agar DOM ter-render dulu (penting untuk Android)
   const runPrint = () => {
     try {
       window.print()
     } catch (e) {
-      alert('Gagal membuka dialog cetak. Periksa pengaturan printer.')
+      alert('Gagal membuka dialog cetak.')
       cleanup()
     }
   }
@@ -535,7 +586,7 @@ function formatNum(n) {
   .product-price { font-size: 0.875rem; }
 }
 
-/* Cart: lebar sama dengan bottom nav, jarak dari bottom nav */
+/* Cart: lebar sama dengan bottom nav, tinggi tidak melebihi layar */
 .cart-sticky {
   position: fixed;
   left: 50%;
@@ -543,7 +594,7 @@ function formatNum(n) {
   width: 100%;
   max-width: 360px;
   bottom: 8rem;
-  max-height: 45vh;
+  max-height: min(45vh, calc(100vh - 14rem));
   border-radius: 1rem;
   z-index: 15;
   overflow: hidden;
@@ -555,7 +606,7 @@ function formatNum(n) {
   transition: max-height 0.25s ease;
 }
 .cart-sticky.cart-expanded {
-  max-height: 70vh;
+  max-height: min(70vh, calc(100vh - 12rem));
 }
 
 @media (min-width: 768px) {
@@ -563,12 +614,23 @@ function formatNum(n) {
     bottom: 9rem;
   }
   .cart-sticky.cart-expanded {
-    max-height: 75vh;
+    max-height: min(75vh, calc(100vh - 12rem));
   }
 }
 
 .cart-content {
   border-top: 1px solid rgb(243 244 246);
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.cart-list-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .cart-toggle-enter-active,
