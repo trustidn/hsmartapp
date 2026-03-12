@@ -23,3 +23,23 @@ body {
 .safe-top {
   padding-top: env(safe-area-inset-top, 0);
 }
+
+/* Cetak struk - alur HSGoMart: #receipt-print = target, sembunyikan sisanya */
+@media print {
+  body * { visibility: hidden; }
+  #receipt-print, #receipt-print * { visibility: visible; }
+  #receipt-print {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    max-width: none;
+    box-shadow: none;
+    background: white !important;
+    color: #000 !important;
+    padding-left: 8mm;
+    padding-right: 8mm;
+  }
+  #receipt-print * { color: inherit; }
+  @page { size: auto; margin: 5mm; }
+}

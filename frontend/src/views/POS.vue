@@ -178,7 +178,7 @@
       </div>
     </div>
 
-    <!-- Receipt modal - mobile-friendly -->
+    <!-- Receipt modal - alur HSGoMart: struk terlihat = target cetak, window.print() -->
     <div
       v-if="paidReceipt"
       class="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center p-4"
@@ -191,12 +191,15 @@
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
-        <ReceiptContent
-          :sale="paidReceipt"
-          :settings="settings"
-          :amount-paid="paidReceipt?.amount_paid"
-          :change="paidReceipt?.change"
-        />
+        <!-- id="receipt-print" = target CSS @media print (HSGoMart) -->
+        <div id="receipt-print" class="print:bg-white print:text-black">
+          <ReceiptContent
+            :sale="paidReceipt"
+            :settings="settings"
+            :amount-paid="paidReceipt?.amount_paid"
+            :change="paidReceipt?.change"
+          />
+        </div>
         <div class="mt-6 flex flex-wrap gap-3">
           <button type="button" class="flex-1 min-w-[100px] min-h-[48px] py-3 rounded-xl border border-gray-300 text-base font-semibold hover:bg-gray-50 active:bg-gray-100" @click="doPrint">Cetak</button>
           <button type="button" class="flex-1 min-w-[100px] min-h-[48px] py-3 rounded-xl bg-primary-600 text-white text-base font-semibold hover:bg-primary-700 active:bg-primary-800" @click="doPdf">PDF</button>
@@ -205,11 +208,6 @@
         </div>
       </div>
     </div>
-
-    <!-- Area cetak in-page (tanpa popup) - tersembunyi di layar, terlihat saat print -->
-    <Teleport to="body">
-      <div id="receipt-print-area" class="receipt-print-area" aria-hidden="true" />
-    </Teleport>
   </div>
 </template>
 
@@ -355,130 +353,14 @@ function paymentLabel(m) {
   return map[m] || m || 'Tunai'
 }
 
-function buildReceiptBodyHtml(sale, s) {
-  const name = (s?.name || 'HSmart POS')
-  const date = sale.created_at ? new Date(sale.created_at).toLocaleString('id-ID') : ''
-  const trunc = (str, len) => String(str).slice(0, len)
-  const itemsHtml = (sale.items || []).map((i) => {
-    const nm = trunc(i.product_name || i.name || 'Item', 22)
-    const qty = i.qty || 1
-    const sub = i.subtotal ?? (i.price || 0) * qty
-    const left = nm + ' x' + qty
-    const right = 'Rp ' + formatNum(sub)
-    return '<div class="row"><span class="item">' + escapeHtml(left) + '</span><span class="amt">' + escapeHtml(right) + '</span></div>'
-  }).join('')
-  let totHtml = '<div class="row total"><span>Total</span><span>Rp ' + escapeHtml(formatNum(sale.total)) + '</span></div>'
-  if (sale.amount_paid != null && sale.amount_paid > 0) {
-    totHtml += '<div class="row"><span>Bayar</span><span>Rp ' + escapeHtml(formatNum(sale.amount_paid)) + '</span></div>'
-    if (sale.change != null && sale.change > 0) {
-      totHtml += '<div class="row change"><span>Kembalian</span><span>Rp ' + escapeHtml(formatNum(sale.change)) + '</span></div>'
-    }
-  }
-  totHtml += '<div class="row"><span>Metode</span><span>' + escapeHtml(paymentLabel(sale.payment_method)) + '</span></div>'
-  const footer = s?.receipt_footer ? '<div class="footer">' + escapeHtml(s.receipt_footer) + '</div>' : ''
-  return (
-    '<div class="store">' + escapeHtml(name) + '</div>' +
-    '<div class="date">' + escapeHtml(date) + '</div>' +
-    '<div class="sep"></div>' +
-    itemsHtml +
-    '<div class="sep"></div>' +
-    totHtml +
-    footer
-  )
-}
-
-/** Struk dokumen HTML penuh (untuk window baru - fallback mobile) */
-function buildReceiptFullDocument(sale, s) {
-  const inner = buildReceiptBodyHtml(sale, s)
-  const style =
-    'body{margin:0;padding:0;font-family:"Courier New",Courier,monospace;font-size:14px;line-height:1.5;color:#000;background:#fff}' +
-    '.receipt{width:100%;padding:2mm 0;max-width:80mm;margin:0 auto;box-sizing:border-box}' +
-    '.store{font-weight:bold;text-align:center;font-size:18px;margin-bottom:4px;line-height:1.3}' +
-    '.date{text-align:center;color:#555;margin-bottom:8px;font-size:13px}' +
-    '.sep{border-top:1px dashed #999;margin:10px 0;line-height:0}' +
-    '.row{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin:4px 0;min-height:1.4em;font-size:14px}' +
-    '.row .item,.row span:first-child{flex:1;min-width:0}' +
-    '.row .amt,.row span:last-child{flex-shrink:0;text-align:right;white-space:nowrap}' +
-    '.row.total{font-weight:bold;margin-top:8px;font-size:16px}' +
-    '.row.change{font-weight:bold;color:#15803d;font-size:14px}' +
-    '.footer{text-align:center;font-size:12px;color:#666;margin-top:12px}' +
-    '@page{size:auto;margin:5mm}' +
-    '@media print{body{background:#fff;color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact}}'
-  return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width"><title>Struk</title><style>' + style + '</style></head><body><div class="receipt">' + inner + '</div></body></html>'
-}
-
-/** Struk untuk cetak in-page (tanpa popup/iframe) */
-function buildReceiptForInPagePrint(sale, s) {
-  const inner = buildReceiptBodyHtml(sale, s)
-  const style =
-    '.receipt-print-area .receipt{width:100%;padding:2mm 0;font-family:"Courier New",Courier,monospace;font-size:14px;line-height:1.5;color:#000}' +
-    '.receipt-print-area .store{font-weight:bold;text-align:center;font-size:18px;margin-bottom:4px;line-height:1.3}' +
-    '.receipt-print-area .date{text-align:center;color:#555;margin-bottom:8px;font-size:13px}' +
-    '.receipt-print-area .sep{border-top:1px dashed #999;margin:10px 0;line-height:0}' +
-    '.receipt-print-area .row{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin:4px 0;min-height:1.4em;font-size:14px}' +
-    '.receipt-print-area .row .item,.receipt-print-area .row span:first-child{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}' +
-    '.receipt-print-area .row .amt,.receipt-print-area .row span:last-child{flex-shrink:0;text-align:right;white-space:nowrap}' +
-    '.receipt-print-area .row.total{font-weight:bold;margin-top:8px;font-size:16px}' +
-    '.receipt-print-area .row.change{font-weight:bold;color:#15803d;font-size:14px}' +
-    '.receipt-print-area .footer{text-align:center;font-size:12px;color:#666;margin-top:12px;line-height:1.4;white-space:pre-wrap}'
-  return '<style>' + style + '</style><div class="receipt">' + inner + '</div>'
-}
-
-function escapeHtml(str) {
-  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
-}
-
-/** Deteksi perangkat mobile (bukan hanya viewport) */
-function isMobileDevice() {
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
-}
-
+/** Cetak struk - alur HSGoMart: struk terlihat di modal = target cetak, window.print() (desktop & mobile sama) */
 function doPrint() {
   if (!paidReceipt.value) return
-  const s = settings.value
-  const sale = paidReceipt.value
-
-  // Di ponsel: fallback ke window baru dengan dokumen HTML penuh (lebih andal di Chrome/Safari mobile)
-  if (isMobileDevice()) {
-    const html = buildReceiptFullDocument(sale, s)
-    const w = window.open('', '_blank', 'noopener,noreferrer,width=320,height=500')
-    if (w) {
-      w.document.write(html)
-      w.document.close()
-      w.focus()
-      setTimeout(() => {
-        try {
-          w.print()
-          w.onafterprint = () => w.close()
-        } catch (e) {
-          alert('Gagal membuka dialog cetak.')
-          w.close()
-        }
-      }, 400)
-    } else {
-      alert('Izinkan pop-up untuk mencetak struk.')
-    }
-    return
+  try {
+    window.print()
+  } catch (e) {
+    alert('Gagal membuka dialog cetak. Periksa pengaturan printer.')
   }
-
-  // Desktop: cetak in-page
-  const el = document.getElementById('receipt-print-area')
-  if (!el) return
-  el.innerHTML = buildReceiptForInPagePrint(sale, s)
-  const cleanup = () => {
-    el.innerHTML = ''
-    window.onafterprint = null
-  }
-  window.onafterprint = cleanup
-  const runPrint = () => {
-    try {
-      window.print()
-    } catch (e) {
-      alert('Gagal membuka dialog cetak.')
-      cleanup()
-    }
-  }
-  requestAnimationFrame(() => setTimeout(runPrint, 200))
 }
 
 function doPdf() {
@@ -491,13 +373,15 @@ function doPdf() {
   }
 }
 
+/** WhatsApp - alur HSGoMart: 62 prefix untuk Indonesia, atau wa.me/?text= bila nomor kosong */
 function doWhatsApp() {
   if (!paidReceipt.value) return
   const text = getReceiptWhatsAppText(paidReceipt.value, settings.value)
-  const num = (customerWhatsapp.value || settings.value?.whatsapp_number || '').replace(/\D/g, '')
-  const url = num
-    ? `https://wa.me/${num}?text=${encodeURIComponent(text)}`
-    : `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`
+  const raw = (customerWhatsapp.value || settings.value?.whatsapp_number || '').trim().replace(/\D/g, '')
+  const waPhone = raw ? (raw.startsWith('62') ? raw : '62' + raw.replace(/^0+/, '')) : ''
+  const url = waPhone
+    ? `https://wa.me/${waPhone}?text=${encodeURIComponent(text)}`
+    : `https://wa.me/?text=${encodeURIComponent(text)}`
   window.open(url, '_blank', 'noopener')
 }
 
@@ -642,55 +526,5 @@ function formatNum(n) {
   max-height: 0;
   opacity: 0;
   overflow: hidden;
-}
-</style>
-
-<!-- Area cetak in-page: proporsional di kertas ukuran apapun, perbaikan Android -->
-<style>
-/* Tersembunyi di layar tapi tetap dalam viewport (Android perlu element "on-page" agar tercetak) */
-.receipt-print-area {
-  position: fixed;
-  left: 0;
-  top: 0;
-  width: 80mm;
-  max-width: 80mm;
-  visibility: hidden;
-  pointer-events: none;
-  background: white;
-  z-index: -1;
-}
-/* Saat cetak: sembunyikan semua selain receipt (display lebih andal di Android daripada visibility) */
-@media print {
-  /* Sembunyikan app utama, hanya tampilkan area struk */
-  body > *:not(#receipt-print-area) {
-    display: none !important;
-    visibility: hidden !important;
-  }
-  #receipt-print-area {
-    display: block !important;
-    visibility: visible !important;
-    position: fixed !important;
-    left: 0 !important;
-    top: 0 !important;
-    right: 0 !important;
-    width: 100% !important;
-    max-width: 100%;
-    min-width: 80mm;
-    box-sizing: border-box;
-    padding: 5mm;
-    margin: 0 !important;
-    background: white !important;
-    color: #000 !important;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-  #receipt-print-area * {
-    visibility: visible !important;
-    color: inherit;
-  }
-  @page {
-    size: auto;
-    margin: 5mm;
-  }
 }
 </style>

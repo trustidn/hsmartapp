@@ -207,8 +207,17 @@
           <h3 class="font-semibold text-lg">Struk</h3>
           <button type="button" class="p-2 text-gray-500" @click="selectedSale = null">✕</button>
         </div>
-        <ReceiptContent :sale="selectedSale" :settings="settings" />
+        <div id="receipt-print" class="print:bg-white print:text-black">
+          <ReceiptContent :sale="selectedSale" :settings="settings" />
+        </div>
         <div class="mt-4 flex gap-2">
+          <button
+            type="button"
+            class="flex-1 py-2 rounded-xl border border-gray-300 text-sm font-medium"
+            @click="printReceipt"
+          >
+            Cetak
+          </button>
           <button
             type="button"
             class="flex-1 py-2 rounded-xl border border-gray-300 text-sm font-medium"
@@ -479,6 +488,15 @@ async function fetchAllForExport() {
   }
 }
 
+function printReceipt() {
+  if (!selectedSale.value) return
+  try {
+    window.print()
+  } catch (e) {
+    alert('Gagal membuka dialog cetak.')
+  }
+}
+
 function downloadPdf() {
   if (!selectedSale.value) return
   import('../lib/receipt').then(({ exportReceiptPdf }) => {
@@ -486,14 +504,16 @@ function downloadPdf() {
   })
 }
 
+/** WhatsApp - alur HSGoMart: 62 prefix untuk Indonesia */
 function shareWhatsApp() {
   if (!selectedSale.value) return
   import('../lib/receipt').then(({ getReceiptWhatsAppText }) => {
     const text = getReceiptWhatsAppText(selectedSale.value, settings.value)
-    const num = (settingsStore.settings?.whatsapp_number || '').replace(/\D/g, '')
-    const url = num
-      ? `https://wa.me/${num}?text=${encodeURIComponent(text)}`
-      : `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`
+    const raw = (settingsStore.settings?.whatsapp_number || '').trim().replace(/\D/g, '')
+    const waPhone = raw ? (raw.startsWith('62') ? raw : '62' + raw.replace(/^0+/, '')) : ''
+    const url = waPhone
+      ? `https://wa.me/${waPhone}?text=${encodeURIComponent(text)}`
+      : `https://wa.me/?text=${encodeURIComponent(text)}`
     window.open(url, '_blank')
   })
 }
