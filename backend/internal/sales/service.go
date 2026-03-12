@@ -22,10 +22,11 @@ type CreateSaleRequest struct {
 }
 
 type CreateItemRequest struct {
-	ProductID string `json:"product_id"`
-	Qty       int    `json:"qty"`
-	Price     int64  `json:"price"`
-	Subtotal  int64  `json:"subtotal"`
+	ProductID   string `json:"product_id"`   // optional for custom items
+	ProductName string `json:"product_name"` // required when product_id empty
+	Qty         int    `json:"qty"`
+	Price       int64  `json:"price"`
+	Subtotal    int64  `json:"subtotal"`
 }
 
 func (s *Service) Create(ctx context.Context, tenantID uuid.UUID, req CreateSaleRequest) (*Sale, error) {
@@ -34,12 +35,22 @@ func (s *Service) Create(ctx context.Context, tenantID uuid.UUID, req CreateSale
 	}
 	items := make([]CreateSaleItemInput, 0, len(req.Items))
 	for _, it := range req.Items {
-		pid, _ := uuid.Parse(it.ProductID)
+		var productID *uuid.UUID
+		if it.ProductID != "" {
+			pid, err := uuid.Parse(it.ProductID)
+			if err == nil {
+				productID = &pid
+			}
+		}
+		if productID == nil && it.ProductName == "" {
+			it.ProductName = "Item"
+		}
 		items = append(items, CreateSaleItemInput{
-			ProductID: pid,
-			Qty:       it.Qty,
-			Price:     it.Price,
-			Subtotal:  it.Subtotal,
+			ProductID:   productID,
+			ProductName: it.ProductName,
+			Qty:         it.Qty,
+			Price:       it.Price,
+			Subtotal:    it.Subtotal,
 		})
 	}
 	return s.repo.Create(ctx, tenantID, CreateSaleInput{

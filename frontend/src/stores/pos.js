@@ -25,8 +25,20 @@ export const usePosStore = defineStore('pos', {
           price: product.price,
           qty,
           subtotal: product.price * qty,
+          isCustom: false,
         })
       }
+    },
+    addCustomItem(name, price, qty = 1) {
+      const id = 'custom-' + (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random().toString(36).slice(2))
+      this.cart.push({
+        productId: id,
+        name: name.trim() || 'Item',
+        price: Number(price) || 0,
+        qty,
+        subtotal: (Number(price) || 0) * qty,
+        isCustom: true,
+      })
     },
     setQty(productId, qty) {
       if (qty <= 0) {
@@ -47,7 +59,8 @@ export const usePosStore = defineStore('pos', {
     },
     async pay(tenantId) {
       const items = this.cart.map((i) => ({
-        product_id: i.productId,
+        product_id: i.isCustom ? '' : i.productId,
+        product_name: i.isCustom ? i.name : '',
         qty: i.qty,
         price: i.price,
         subtotal: i.subtotal,

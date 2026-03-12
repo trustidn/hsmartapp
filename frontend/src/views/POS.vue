@@ -5,9 +5,9 @@
       Offline — data akan disinkronkan saat online
     </div>
 
-    <!-- Search products -->
-    <div class="mb-3">
-      <div class="relative">
+    <!-- Search products + Menu Tambahan -->
+    <div class="mb-3 flex gap-2">
+      <div class="relative flex-1">
         <input
           v-model="productSearch"
           type="text"
@@ -18,6 +18,13 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
         </svg>
       </div>
+      <button
+        type="button"
+        class="shrink-0 px-4 py-2.5 rounded-xl border-2 border-dashed border-primary-400 bg-primary-50 text-primary-700 font-semibold text-sm hover:bg-primary-100 hover:border-primary-500 transition-colors touch-manipulation min-h-[44px]"
+        @click="showCustomItemModal = true"
+      >
+        Produk Tambahan
+      </button>
     </div>
 
     <!-- Products: scroll only when needed -->
@@ -128,6 +135,76 @@
         </div>
       </div>
     </aside>
+
+    <!-- Menu Tambahan modal (nama + harga + qty stepper +/-) -->
+    <div
+      v-if="showCustomItemModal"
+      class="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center p-4"
+      @click.self="closeCustomItemModal"
+    >
+      <div class="bg-white rounded-2xl w-full max-w-md p-6 shadow-xl touch-manipulation" @click.stop>
+        <h3 class="font-semibold text-xl mb-5">Produk Tambahan</h3>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-2">Nama produk <span class="text-red-500">*</span></label>
+            <input
+              v-model="customItemForm.name"
+              type="text"
+              placeholder="Contoh: Air Putih"
+              class="w-full px-4 py-3.5 min-h-[48px] rounded-xl border border-gray-300 text-base focus:ring-2 focus:ring-primary-400 focus:border-primary-500"
+            />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-2">Harga <span class="text-red-500">*</span></label>
+            <input
+              v-model.number="customItemForm.price"
+              type="number"
+              min="0"
+              placeholder="0"
+              class="w-full px-4 py-3.5 min-h-[48px] rounded-xl border border-gray-300 text-base tabular-nums focus:ring-2 focus:ring-primary-400 focus:border-primary-500"
+            />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-2">Jumlah</label>
+            <div class="flex items-center gap-3">
+              <button
+                type="button"
+                class="flex-shrink-0 w-12 h-12 rounded-xl border-2 border-gray-300 font-bold text-gray-700 hover:bg-gray-50 active:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none touch-manipulation flex items-center justify-center text-xl"
+                :disabled="customItemForm.qty <= 1"
+                @click="customItemForm.qty = Math.max(1, customItemForm.qty - 1)"
+              >
+                −
+              </button>
+              <span class="flex-1 text-center text-lg font-semibold min-w-[3rem]">{{ customItemForm.qty }}</span>
+              <button
+                type="button"
+                class="flex-shrink-0 w-12 h-12 rounded-xl border-2 border-primary-500 bg-primary-50 text-primary-700 font-bold hover:bg-primary-100 active:bg-primary-200 touch-manipulation flex items-center justify-center text-xl"
+                @click="customItemForm.qty += 1"
+              >
+                +
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="flex gap-3 mt-6">
+          <button
+            type="button"
+            class="flex-1 min-h-[52px] py-3.5 rounded-xl border border-gray-300 text-base font-semibold hover:bg-gray-50 active:bg-gray-100 touch-manipulation"
+            @click="closeCustomItemModal"
+          >
+            Batal
+          </button>
+          <button
+            type="button"
+            class="flex-1 min-h-[52px] py-3.5 rounded-xl bg-primary-600 text-white text-base font-semibold hover:bg-primary-700 active:bg-primary-800 disabled:opacity-50 disabled:pointer-events-none touch-manipulation"
+            :disabled="!isCustomItemValid"
+            @click="submitCustomItem"
+          >
+            Tambah
+          </button>
+        </div>
+      </div>
+    </div>
 
     <!-- Payment form modal - mobile-friendly, touch targets 48px+ -->
     <div
@@ -262,6 +339,28 @@ const isAmountValid = computed(() => {
   const amt = Number(paymentForm.value.amountPaid)
   return !isNaN(amt) && amt >= pos.total && pos.total > 0
 })
+
+// Menu Tambahan modal
+const showCustomItemModal = ref(false)
+const customItemForm = ref({ name: '', price: 0, qty: 1 })
+const isCustomItemValid = computed(() => {
+  const name = (customItemForm.value.name || '').trim()
+  const price = Number(customItemForm.value.price)
+  return name.length > 0 && !isNaN(price) && price >= 0
+})
+function closeCustomItemModal() {
+  showCustomItemModal.value = false
+  customItemForm.value = { name: '', price: 0, qty: 1 }
+}
+function submitCustomItem() {
+  if (!isCustomItemValid.value) return
+  const name = (customItemForm.value.name || '').trim()
+  const price = Number(customItemForm.value.price) || 0
+  const qty = Math.max(1, customItemForm.value.qty || 1)
+  playBeep()
+  pos.addCustomItem(name, price, qty)
+  closeCustomItemModal()
+}
 
 // Payment icons
 const CashIcon = { template: `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375" /></svg>` }

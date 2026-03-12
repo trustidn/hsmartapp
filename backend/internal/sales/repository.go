@@ -43,10 +43,11 @@ type CreateSaleInput struct {
 }
 
 type CreateSaleItemInput struct {
-	ProductID uuid.UUID
-	Qty       int
-	Price     int64
-	Subtotal  int64
+	ProductID   *uuid.UUID
+	ProductName string
+	Qty         int
+	Price       int64
+	Subtotal    int64
 }
 
 func (r *Repository) Create(ctx context.Context, tenantID uuid.UUID, input CreateSaleInput) (*Sale, error) {
@@ -67,10 +68,16 @@ func (r *Repository) Create(ctx context.Context, tenantID uuid.UUID, input Creat
 	}
 
 	for _, it := range input.Items {
+		var productID interface{}
+		if it.ProductID != nil {
+			productID = *it.ProductID
+		} else {
+			productID = nil
+		}
 		_, err = tx.Exec(ctx, `
-			INSERT INTO sale_items (sale_id, product_id, qty, price, subtotal)
-			VALUES ($1, $2, $3, $4, $5)
-		`, saleID, it.ProductID, it.Qty, it.Price, it.Subtotal)
+			INSERT INTO sale_items (sale_id, product_id, product_name, qty, price, subtotal)
+			VALUES ($1, $2, NULLIF($3, ''), $4, $5, $6)
+		`, saleID, productID, it.ProductName, it.Qty, it.Price, it.Subtotal)
 		if err != nil {
 			return nil, err
 		}
@@ -94,7 +101,7 @@ func (r *Repository) GetByID(ctx context.Context, id, tenantID uuid.UUID) (*Sale
 		return nil, err
 	}
 	rows, err := r.pool.Query(ctx, `
-		SELECT si.id, si.sale_id, si.product_id, p.name, si.qty, si.price, si.subtotal
+		SELECT si.id, si.sale_id, si.product_id, COALESCE(si.product_name, p.name, ''), si.qty, si.price, si.subtotal
 		FROM sale_items si
 		LEFT JOIN products p ON p.id = si.product_id
 		WHERE si.sale_id = $1

@@ -96,12 +96,16 @@ func (r *Repository) ProductRankingForRange(ctx context.Context, tenantID uuid.U
 		limit = 10
 	}
 	rows, err := r.pool.Query(ctx, `
-		SELECT p.id::text, p.name, SUM(si.qty)::int as qty, SUM(si.subtotal) as total
+		SELECT
+			COALESCE(si.product_id::text, 'cust-' || COALESCE(si.product_name, '')) as product_id,
+			COALESCE(p.name, si.product_name, 'Item') as product_name,
+			SUM(si.qty)::int as qty,
+			SUM(si.subtotal) as total
 		FROM sale_items si
 		JOIN sales s ON s.id = si.sale_id AND s.tenant_id = $1
-		JOIN products p ON p.id = si.product_id
+		LEFT JOIN products p ON p.id = si.product_id
 		WHERE s.created_at >= $2 AND s.created_at <= $3
-		GROUP BY p.id, p.name
+		GROUP BY COALESCE(si.product_id::text, 'cust-' || COALESCE(si.product_name, '')), COALESCE(p.name, si.product_name, 'Item')
 		ORDER BY qty DESC, total DESC
 		LIMIT $4
 	`, tenantID, start, end, limit)
@@ -175,12 +179,16 @@ func (r *Repository) RangeProductRanking(ctx context.Context, tenantID uuid.UUID
 	dayEnd := time.Date(to.Year(), to.Month(), to.Day(), 23, 59, 59, 999999999, to.Location()).Add(time.Second)
 
 	rows, err := r.pool.Query(ctx, `
-		SELECT p.id::text, p.name, SUM(si.qty)::int as qty, SUM(si.subtotal) as total
+		SELECT
+			COALESCE(si.product_id::text, 'cust-' || COALESCE(si.product_name, '')) as product_id,
+			COALESCE(p.name, si.product_name, 'Item') as product_name,
+			SUM(si.qty)::int as qty,
+			SUM(si.subtotal) as total
 		FROM sale_items si
 		JOIN sales s ON s.id = si.sale_id AND s.tenant_id = $1
-		JOIN products p ON p.id = si.product_id
+		LEFT JOIN products p ON p.id = si.product_id
 		WHERE s.created_at >= $2 AND s.created_at <= $3
-		GROUP BY p.id, p.name
+		GROUP BY COALESCE(si.product_id::text, 'cust-' || COALESCE(si.product_name, '')), COALESCE(p.name, si.product_name, 'Item')
 		ORDER BY qty DESC, total DESC
 		LIMIT $4
 	`, tenantID, dayStart, dayEnd, limit)

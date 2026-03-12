@@ -141,8 +141,8 @@ export async function getTodayLocalProductRank(tenantId, limit = 10) {
   for (const s of todaySales) {
     const items = s.payload?.items || []
     for (const i of items) {
-      const key = i.product_id || 'unknown'
-      if (!byProduct[key]) byProduct[key] = { product_id: key, product_name: nameMap[key] || 'Produk', qty: 0, total: 0 }
+      const key = i.product_id || ('custom-' + (i.product_name || 'Item'))
+      if (!byProduct[key]) byProduct[key] = { product_id: key, product_name: nameMap[key] || i.product_name || 'Produk', qty: 0, total: 0 }
       byProduct[key].qty += i.qty || 1
       byProduct[key].total += i.subtotal || (i.price || 0) * (i.qty || 1)
     }
