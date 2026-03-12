@@ -9,8 +9,8 @@
           alt="Logo"
           class="w-8 h-8 object-contain rounded-lg"
         />
-        <span v-else class="w-8 h-8 rounded-lg bg-primary-100 flex items-center justify-center text-primary-600 font-bold text-sm">A</span>
-        <span class="text-base font-bold text-primary-600 tracking-tight truncate">HSmart Admin</span>
+        <span v-else class="w-8 h-8 rounded-lg bg-primary-100 flex items-center justify-center text-primary-600 font-bold text-sm">{{ appInitial }}</span>
+        <span class="text-base font-bold text-primary-600 tracking-tight truncate max-w-[140px]">{{ appName }} Admin</span>
       </router-link>
       <h1 class="flex-1 text-center text-base font-semibold text-gray-800 truncate px-2">{{ pageTitle }}</h1>
       <div class="shrink-0 flex items-center gap-3">
